@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Composing models over shared layers · CategoricalCellularAutomata.jl</title><meta name="title" content="Composing models over shared layers · CategoricalCellularAutomata.jl"/><meta property="og:title" content="Composing models over shared layers · CategoricalCellularAutomata.jl"/><meta property="twitter:title" content="Composing models over shared layers · CategoricalCellularAutomata.jl"/><meta name="description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="og:description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="twitter:description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="og:url" content="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/10_composing_models/"/><meta property="twitter:url" content="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/10_composing_models/"/><link rel="canonical" href="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/10_composing_models/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/documentercitations/citations-hover.css" rel="stylesheet" type="text/css"/><link href="../../assets/documentercitations/citations.css" rel="stylesheet" type="text/css"/><script src="../../assets/documentercitations/citations-data.js"></script><script src="../../assets/documentercitations/citations-hover.js"></script><script src="../../assets/documentercitations/citations-backlinks.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">CategoricalCellularAutomata.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../references/">References</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../01_ca_over_groups/">Cellular automata over groups</a></li><li><a class="tocitem" href="../02_composition/">Composing cellular automata</a></li><li><a class="tocitem" href="../03_products/">Products and multi-layer models</a></li><li><a class="tocitem" href="../04_wiring_diagrams/">Models from wiring diagrams</a></li><li><a class="tocitem" href="../05_curtis_hedlund_lyndon/">Recognising cellular automata</a></li><li><a class="tocitem" href="../06_generalised_ca/">Generalised cellular automata</a></li><li><a class="tocitem" href="../07_alphabet_categories/">Linear and monotone cellular automata</a></li><li><a class="tocitem" href="../08_free_products/">Free products and weak products</a></li><li><a class="tocitem" href="../09_stochastic_ca_markov/">Stochastic cellular automata in a Markov category</a></li><li class="is-active"><a class="tocitem" href>Composing models over shared layers</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#Three-models"><span>Three models</span></a></li><li><a class="tocitem" href="#The-diagram"><span>The diagram</span></a></li><li><a class="tocitem" href="#Running-it"><span>Running it</span></a></li><li><a class="tocitem" href="#Who-updates-a-layer"><span>Who updates a layer</span></a></li><li><a class="tocitem" href="#Random-numbers-per-model"><span>Random numbers per model</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Composing models over shared layers</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Composing models over shared layers</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/ecorecipes/CategoricalCellularAutomata.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/docs/src/tutorials/10_composing_models.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Composing-models-over-shared-layers"><a class="docs-heading-anchor" href="#Composing-models-over-shared-layers">Composing models over shared layers</a><a id="Composing-models-over-shared-layers-1"></a><a class="docs-heading-anchor-permalink" href="#Composing-models-over-shared-layers" title="Permalink"></a></h1><p>Simon Frost</p><ul><li><a href="#overview">Overview</a></li><li><a href="#three-models">Three models</a></li><li><a href="#the-diagram">The diagram</a></li><li><a href="#running-it">Running it</a></li><li><a href="#who-updates-a-layer">Who updates a layer</a></li><li><a href="#random-numbers-per-model">Random numbers per model</a></li></ul><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>A field model is often written by several people: one models the crop, another the vector, a third the spraying programme. Each part is a CellularAutomataCore model of its own, with its own state layers, parameters and random numbers. This vignette composes such models along an undirected wiring diagram. Boxes are models, junctions are shared layers, and the composite is again a <code>CAModel</code> that runs on any backend.</p><p>The construction applies the product theorem of the earlier vignettes to whole models. The composite updates every layer at once, and is the pairing of each model’s update of the layers it owns. Composing models this way is a <strong>research extension</strong> beyond the papers, in the spirit of the resource sharers of AlgebraicDynamics.jl.</p><pre><code class="language-julia hljs">ENV[&quot;GKSwstype&quot;] = &quot;100&quot;
+using CategoricalCellularAutomata
+using Catlab: Catlab, @relation, to_graphviz
+using CellularAutomataCore: CellularAutomataCore, @camodel, CAProblem, Torus, solve, states,
+                            defaults, bernoulli, VonNeumann
+using Plots
+using Statistics</code></pre><h2 id="Three-models"><a class="docs-heading-anchor" href="#Three-models">Three models</a><a id="Three-models-1"></a><a class="docs-heading-anchor-permalink" href="#Three-models" title="Permalink"></a></h2><p>The crop: a healthy plant (0) is infected (1) with probability <code>β</code> when two or more aphids are on it. It reads the aphid layer but does not change it.</p><pre><code class="language-julia hljs">crop = @camodel Crop begin
+    @states host::Int8 = 0 aphid::Int8 = 0
+    @parameters β = 0.5
+    @neighbourhood VonNeumann(1)
+    @rule begin
+        infected = cell.host == 1 || (cell.aphid &gt;= 2 &amp;&amp; bernoulli(ctx, β, 1))
+        (host=Int8(infected), aphid=cell.aphid)
+    end
+end</code></pre><pre><code class="nohighlight hljs">CAModel Crop
+  states:
+    host::Int8 = 0
+    aphid::Int8 = 0
+  parameters:
+    β = 0.5
+  rule: LocalRule(&lt;anonymous function&gt;, VonNeumann(1))</code></pre><p>The aphids breed to density 3 on infected plants and spread from crowded cells, losing one level as they move. A few fly in from outside, and a spray kills them all where it is applied.</p><pre><code class="language-julia hljs">aphids = @camodel Aphids begin
+    @states host::Int8 = 0 aphid::Int8 = 0 spray::Int8 = 0
+    @parameters immigration = 0.002
+    @neighbourhood VonNeumann(1)
+    @rule begin
+        a = if cell.spray == 1
+            Int8(0)
+        elseif cell.host == 1
+            Int8(3)
+        else
+            spread = max(cell.aphid, maximum(n.aphid for n in nbrs)) - 1
+            Int8(max(spread, bernoulli(ctx, immigration, 1) ? 2 : 0))
+        end
+        (host=cell.host, aphid=a, spray=cell.spray)
+    end
+end</code></pre><pre><code class="nohighlight hljs">CAModel Aphids
+  states:
+    host::Int8 = 0
+    aphid::Int8 = 0
+    spray::Int8 = 0
+  parameters:
+    immigration = 0.002
+  rule: LocalRule(&lt;anonymous function&gt;, VonNeumann(1))</code></pre><p>The spraying programme sprays every field cell on one day in <code>every</code>.</p><pre><code class="language-julia hljs">schedule = @camodel Schedule begin
+    @states spray::Int8 = 0
+    @parameters every = 7
+    @neighbourhood VonNeumann(1)
+    @rule Int8(ctx.t % every == every - 1)
+end</code></pre><pre><code class="nohighlight hljs">CAModel Schedule
+  states:
+    spray::Int8 = 0
+  parameters:
+    every = 7
+  rule: LocalRule(&lt;anonymous function&gt;, VonNeumann(1))</code></pre><h2 id="The-diagram"><a class="docs-heading-anchor" href="#The-diagram">The diagram</a><a id="The-diagram-1"></a><a class="docs-heading-anchor-permalink" href="#The-diagram" title="Permalink"></a></h2><p>Catlab’s <code>@relation</code> writes the wiring: each model is a box, listed with the layers it shares, and each shared layer is a junction.</p><pre><code class="language-julia hljs">field = @relation (host, aphid, spray) begin
+    crop(host, aphid)
+    aphids(host, aphid, spray)
+    schedule(spray)
+end
+to_graphviz(field; box_labels=:name, junction_labels=:variable)</code></pre><p><img src="../10_composing_models_files/figure-commonmark/cell-6-output-1.svg" alt/></p><p>Each box is an <code>OpenCAModel</code>: a model, the layers it exposes as ports (in the order of the box’s ports), and the layers it reads without updating. Every layer must have at most one model that updates it: the crop owns <code>host</code>, the aphids own <code>aphid</code>, and the schedule owns <code>spray</code>.</p><pre><code class="language-julia hljs">boxes = (crop=OpenCAModel(crop; reads=[:aphid]),
+         aphids=OpenCAModel(aphids; reads=[:host, :spray]),
+         schedule=OpenCAModel(schedule))
+model = oapply(field, boxes; name=:Field)</code></pre><pre><code class="nohighlight hljs">CAModel Field
+  composite of crop, aphids, schedule
+  states:
+    host::Int8 = 0
+    aphid::Int8 = 0
+    spray::Int8 = 0
+  parameters:
+    crop = (β = 0.5,)
+    aphids = (immigration = 0.002,)
+    schedule = (every = 7,)
+  rule: LocalRule(crop + aphids + schedule, Offsets((0, -1), (-1, 0), (1, 0), (0, 1)))</code></pre><p>The composite is an ordinary <code>CAModel</code>. Its states are the junctions, and its parameters are those of each box, under the box’s name:</p><pre><code class="language-julia hljs">([s.name for s in states(model)], defaults(model))</code></pre><pre><code class="nohighlight hljs">([:host, :aphid, :spray], (crop = (β = 0.5,), aphids = (immigration = 0.002,), schedule = (every = 7,)))</code></pre><h2 id="Running-it"><a class="docs-heading-anchor" href="#Running-it">Running it</a><a id="Running-it-1"></a><a class="docs-heading-anchor-permalink" href="#Running-it" title="Permalink"></a></h2><pre><code class="language-julia hljs">space = Torus(60, 60)
+host0 = zeros(Int8, 60, 60)
+host0[30, 30] = 1
+sprayed = solve(CAProblem(model, (host=host0,), 60; space, seed=1); saveat=20)
+plot([heatmap(u.host; c=[:palegreen, :darkred], clims=(0, 1), colorbar=false,
+              aspect_ratio=:equal, framestyle=:none, title=&quot;day $t&quot;)
+      for (t, u) in zip(sprayed.t, sprayed.u)]...; layout=(1, 4), size=(900, 250))</code></pre><p><img src="../10_composing_models_files/figure-commonmark/cell-9-output-1.svg" alt/></p><p>The same models without the spraying programme are another diagram. Its spray layer has no model to update it, so it keeps its initial state, zero: no spraying.</p><pre><code class="language-julia hljs">unsprayed_field = @relation (host, aphid, spray) begin
+    crop(host, aphid)
+    aphids(host, aphid, spray)
+end
+unsprayed = oapply(unsprayed_field, (crop=boxes.crop, aphids=boxes.aphids))</code></pre><pre><code class="nohighlight hljs">CAModel composite
+  composite of crop, aphids
+  states:
+    host::Int8 = 0
+    aphid::Int8 = 0
+    spray::Int8 = 0
+  parameters:
+    crop = (β = 0.5,)
+    aphids = (immigration = 0.002,)
+  rule: LocalRule(crop + aphids, Offsets((0, -1), (-1, 0), (1, 0), (0, 1)))</code></pre><p>Parameters are set per box. Here the programme sprays every 7 days, every 3 days, or not at all:</p><pre><code class="language-julia hljs">infected(sol) = [mean(u.host) for u in sol.u]
+runs = [&quot;no spraying&quot; =&gt; solve(CAProblem(unsprayed, (host=host0,), 60; space, seed=1)),
+        &quot;every 7 days&quot; =&gt; solve(CAProblem(model, (host=host0,), 60; space, seed=1)),
+        &quot;every 3 days&quot; =&gt; solve(CAProblem(model, (host=host0,), 60, (schedule=(every=3,),);
+                                          space, seed=1))]
+plot(; xlabel=&quot;day&quot;, ylabel=&quot;fraction of plants infected&quot;, legend=:topleft)
+for (label, sol) in runs
+    plot!(sol.t, infected(sol); label, lw=2)
+end
+current()</code></pre><p><img src="../10_composing_models_files/figure-commonmark/cell-11-output-1.svg" alt/></p><h2 id="Who-updates-a-layer"><a class="docs-heading-anchor" href="#Who-updates-a-layer">Who updates a layer</a><a id="Who-updates-a-layer-1"></a><a class="docs-heading-anchor-permalink" href="#Who-updates-a-layer" title="Permalink"></a></h2><p>Two models that both update the same layer cannot be composed, because their updates would race. A second crop model that also updates <code>host</code> is refused:</p><pre><code class="language-julia hljs">field2 = @relation (host, aphid, spray) begin
+    crop(host, aphid)
+    blight(host, aphid)
+    aphids(host, aphid, spray)
+end
+try
+    oapply(field2, (crop=boxes.crop, blight=OpenCAModel(crop; reads=[:aphid]),
+                    aphids=boxes.aphids))
+catch err
+    sprint(showerror, err)
+end</code></pre><pre><code class="nohighlight hljs">&quot;LayerConflictError: layer host would be updated by crop and blight; declare it in `reads` for all but one of them&quot;</code></pre><h2 id="Random-numbers-per-model"><a class="docs-heading-anchor" href="#Random-numbers-per-model">Random numbers per model</a><a id="Random-numbers-per-model-1"></a><a class="docs-heading-anchor-permalink" href="#Random-numbers-per-model" title="Permalink"></a></h2><p>Each box draws its own random numbers, from a seed derived from its name, so the crop and the aphids, which both use draw number 1, are independent. This is the independent coupling of the stochastic vignette. With <code>shared_randomness=true</code> the boxes see the same uniforms, which couples them: the crop’s infection draw and the aphids’ immigration draw at a cell become the same number, so aphids fly in only where an infection draw would also succeed. Whether that matters is a question about the model. Here it does not matter much, as the fraction infected on day 30 over 20 seeds shows:</p><pre><code class="language-julia hljs">shared = oapply(field, boxes; shared_randomness=true)
+day30(m) = [mean(solve(CAProblem(m, (host=host0,), 30; space, seed);
+                       save_everystep=false).u[end].host) for seed in 1:20]
+summary(v) = (mean=round(mean(v); digits=3), sd=round(std(v); digits=3))
+(independent=summary(day30(model)), shared=summary(day30(shared)))</code></pre><pre><code class="nohighlight hljs">(independent = (mean = 0.582, sd = 0.054), shared = (mean = 0.571, sd = 0.06))</code></pre><p>The two means differ by less than their standard errors. Immigration is rare, and an immigrant aphid only matters at a later step, through draws that are not shared. The default keeps the boxes’ randomness apart, so that composing two models never couples them by accident, and the option makes coupling a choice that can be tested, as here.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../09_stochastic_ca_markov/">« Stochastic cellular automata in a Markov category</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 2 November 2026 20:06">Monday 2 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
