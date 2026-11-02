@@ -1,0 +1,14 @@
+[deps]
+CategoricalCellularAutomata = "622e49ff-531b-4915-9a6c-e6359157e6de"
+Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
+CellularAutomataCore = "a487d8a1-ae30-4227-807a-1df2ba951c8b"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
+
+[sources]
+CategoricalCellularAutomata = {path = ".."}
+CellularAutomataCore = {path = "../../CellularAutomataCore.jl"}
+
+[compat]
+Documenter = "1"
+DocumenterCitations = "1"
