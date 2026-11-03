@@ -41,6 +41,11 @@ the `references.bib` files here are synced copies.
 - A `NeighbourhoodSpace` built from a core space steps exactly as the core does (neighbours in the core's
   order; `Constant` edges as pinned cells); maps of spaces are tested by commuting with local rules (every
   rule for coverings, reflection-symmetric rules for `reflection_fold`, and an anisotropic rule must fail).
+- Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with
+  discrete feet. `glue` computes colimits by union-find (feet are cells, so slots are never identified);
+  `algorithm=:catlab` uses Catlab's `oapply` and the tests check the two agree. Glued landscapes are tested
+  as bijective maps of spaces onto the core's lattices, and the landscape's step restricted to a patch must
+  equal the patch's step.
 - Constructions faithful to the papers and the research extensions beyond them (stochastic cellular automata
   in a Markov category) are documented separately, and the extensions are labelled as such.
 
@@ -60,11 +65,12 @@ the `references.bib` files here are synced copies.
   `distribution`, `marginal`, `stochastic_pair`, core sampling) and `src/composition.jl` (`OpenCAModel`,
   `oapply` for core `CAModel`s over undirected wiring diagrams, on square or hexagonal lattices and graphs)
   and `src/spaces.jl` (`NeighbourhoodSpace` from any core space, `SpaceMorphism`, `pullback`, `covering`,
-  `reflection_fold`, `cayley_space`).
+  `reflection_fold`, `cayley_space`) and `src/gluing.jl` (`SlotGraph`, `lattice_patch`, `glue`).
 - `test/runtests.jl`, `test/test_groups.jl`, `test/test_cartesian.jl` (category and product laws with random
   lookup-table rules), `test/test_chl_bridge.jl`, `test/test_generalized.jl` (homomorphisms, free
   products, generalised, linear and monotone automata), `test/test_markov.jl` (the research
-  extensions), `test/test_spaces.jl` (geometries and composites on them), `test/test_errors.jl`,
+  extensions), `test/test_spaces.jl` (geometries and composites on them), `test/test_gluing.jl` (landscapes glued
+  from patches), `test/test_errors.jl`,
   `test/test_docstrings.jl`: the suite,
   seeded RNGs only.
 

@@ -26,7 +26,8 @@ import Catlab.Theories: dom, codom, id, compose, otimes, ⊗, munit, braid, mcop
                         proj1, proj2
 # Catlab exports these names too; extending its functions keeps `using Catlab` free of clashes
 import Catlab: elements, restrict, shape, factorize, pullback, oapply
-using Catlab: nparts, subpart
+using Catlab: nparts, subpart, parts, incident, add_parts!, legs, apex, FinFunction,
+              @present, FreeSchema, @acset_type, OpenACSetTypes, FinSet, Multicospan
 using Catlab.WiringDiagrams.UndirectedWiringDiagrams: AbstractUWD, ports
 using CellularAutomataCore: CellularAutomataCore
 const CAC = CellularAutomataCore
@@ -57,6 +58,9 @@ export torus_group, torus_space
 # Geometries: neighbourhood spaces and the maps between them
 export NeighbourhoodSpace, neighbourhood_space, free_cells, cayley_space, apply_local,
        SpaceMorphism, is_morphism, covering, reflection_fold
+# Gluing spaces: slot graphs, patches and their colimits
+export SchSlotGraph, SlotGraph, OpenSlotGraphOb, OpenSlotGraph, slot_graph, interior_cells,
+       halo_cells, lattice_patch, patch_coordinates, glue
 # Exceptions: the root and the concrete types under it
 export CategoricalCellularAutomataError, GroupMismatchError, DomainMismatchError,
        LayerConflictError
@@ -69,6 +73,7 @@ include("cartesian.jl")
 include("chl.jl")
 include("bridge.jl")
 include("spaces.jl")
+include("gluing.jl")
 include("homomorphisms.jl")
 include("generalized.jl")
 include("linear.jl")

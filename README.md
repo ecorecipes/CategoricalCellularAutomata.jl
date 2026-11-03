@@ -34,7 +34,9 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
   one owner per layer and per-model random numbers, on square or hexagonal lattices and on graphs; and
   geometries beyond groups: any core space as a set of cells with neighbour lists (a coalgebra), maps of
   spaces along which configurations pull back and local rules commute (coverings of tori, reflecting edges
-  as a fold of a doubled torus), constant edges as pinned cells.
+  as a fold of a doubled torus), constant edges as pinned cells; and landscapes glued from patches:
+  spaces as C-sets of cells and neighbour slots, lattice patches with halos, gluing as a colimit along
+  undirected wiring diagrams (`glue`), on which a local rule restricts to each patch.
 
 ## Quick Start
 
@@ -81,6 +83,7 @@ Requires Julia â‰¥ 1.12.
 | 9 | [Stochastic cellular automata in a Markov category](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/09_stochastic_ca_markov/09_stochastic_ca_markov.md) | Research extension: exact distributions, copying, couplings and draw numbers, correlated composites |
 | 10 | [Composing models over shared layers](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/10_composing_models/10_composing_models.md) | Research extension: crop, aphid and spraying models composed with `@relation` and `oapply` |
 | 11 | [Geometries](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/11_geometries/11_geometries.md) | Research extension: square and hexagonal tori as Cayley spaces, periodic and reflecting edges as quotients, constant edges as pinned cells, graphs, and composites on any geometry |
+| 12 | [Gluing spaces](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/12_gluing_spaces/12_gluing_spaces.md) | Research extension: landscapes as colimits of patches (strips, cylinders, tori, blocks), gluing in stages, dynamics restricted to patches, and fields joined by a road |
 
 Each vignette is also published as a tutorial in the
 [documentation](https://ecorecipes.github.io/CategoricalCellularAutomata.jl/); the sources are the `.qmd` files in

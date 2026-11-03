@@ -31,7 +31,7 @@ function tutorial_pages()
 end
 
 pages = Any["Home" => "index.md", "API Reference" => "api.md",
-            "References" => "references.md"]
+            "Spaces and gluing" => "api_spaces.md", "References" => "references.md"]
 tutorials = tutorial_pages()
 isempty(tutorials) || push!(pages, "Tutorials" => tutorials)
 

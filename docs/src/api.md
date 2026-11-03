@@ -147,26 +147,6 @@ CellularAutomataCore.LocalRule(::CellularAutomaton{<:Union{CyclicGroup, TorusGro
 CellularAutomataCore.CAProblem(::CellularAutomaton{<:Union{CyclicGroup, TorusGroup}}, ::Any, ::Any, ::Vararg)
 ```
 
-## Geometries
-
-Spaces beyond groups: the cells of any CellularAutomataCore space with their
-neighbour lists, and the maps between spaces that preserve neighbours, along
-which configurations pull back.
-
-```@docs
-NeighbourhoodSpace
-neighbourhood_space
-free_cells
-cayley_space
-apply_local
-SpaceMorphism
-is_morphism
-pullback(::SpaceMorphism, ::AbstractVector)
-covering
-reflection_fold
-compose(::SpaceMorphism, ::SpaceMorphism)
-```
-
 ## Exceptions
 
 Every exception the package defines subtypes the abstract root

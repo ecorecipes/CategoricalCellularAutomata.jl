@@ -11,6 +11,7 @@ using Catlab: @present, @program, @relation, FreeCartesianCategory
     include("test_generalized.jl")
     include("test_markov.jl")
     include("test_spaces.jl")
+    include("test_gluing.jl")
     include("test_errors.jl")
     include("test_docstrings.jl")
 end
