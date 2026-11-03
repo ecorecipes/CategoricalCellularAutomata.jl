@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Gluing spaces · CategoricalCellularAutomata.jl</title><meta name="title" content="Gluing spaces · CategoricalCellularAutomata.jl"/><meta property="og:title" content="Gluing spaces · CategoricalCellularAutomata.jl"/><meta property="twitter:title" content="Gluing spaces · CategoricalCellularAutomata.jl"/><meta name="description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="og:description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="twitter:description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="og:url" content="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/12_gluing_spaces/"/><meta property="twitter:url" content="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/12_gluing_spaces/"/><link rel="canonical" href="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/12_gluing_spaces/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/documentercitations/citations-hover.css" rel="stylesheet" type="text/css"/><link href="../../assets/documentercitations/citations.css" rel="stylesheet" type="text/css"/><script src="../../assets/documentercitations/citations-data.js"></script><script src="../../assets/documentercitations/citations-hover.js"></script><script src="../../assets/documentercitations/citations-backlinks.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">CategoricalCellularAutomata.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../api_spaces/">Spaces and gluing</a></li><li><a class="tocitem" href="../../references/">References</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../01_ca_over_groups/">Cellular automata over groups</a></li><li><a class="tocitem" href="../02_composition/">Composing cellular automata</a></li><li><a class="tocitem" href="../03_products/">Products and multi-layer models</a></li><li><a class="tocitem" href="../04_wiring_diagrams/">Models from wiring diagrams</a></li><li><a class="tocitem" href="../05_curtis_hedlund_lyndon/">Recognising cellular automata</a></li><li><a class="tocitem" href="../06_generalised_ca/">Generalised cellular automata</a></li><li><a class="tocitem" href="../07_alphabet_categories/">Linear and monotone cellular automata</a></li><li><a class="tocitem" href="../08_free_products/">Free products and weak products</a></li><li><a class="tocitem" href="../09_stochastic_ca_markov/">Stochastic cellular automata in a Markov category</a></li><li><a class="tocitem" href="../10_composing_models/">Composing models over shared layers</a></li><li><a class="tocitem" href="../11_geometries/">Geometries</a></li><li class="is-active"><a class="tocitem" href>Gluing spaces</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#A-patch"><span>A patch</span></a></li><li><a class="tocitem" href="#Two-fields-side-by-side"><span>Two fields side by side</span></a></li><li><a class="tocitem" href="#Gluing-a-patch-to-itself"><span>Gluing a patch to itself</span></a></li><li><a class="tocitem" href="#Gluing-is-compositional"><span>Gluing is compositional</span></a></li><li><a class="tocitem" href="#Dynamics-restrict-to-patches"><span>Dynamics restrict to patches</span></a></li><li><a class="tocitem" href="#Fields-joined-by-a-road"><span>Fields joined by a road</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Gluing spaces</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Gluing spaces</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/ecorecipes/CategoricalCellularAutomata.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/docs/src/tutorials/12_gluing_spaces.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Gluing-spaces"><a class="docs-heading-anchor" href="#Gluing-spaces">Gluing spaces</a><a id="Gluing-spaces-1"></a><a class="docs-heading-anchor-permalink" href="#Gluing-spaces" title="Permalink"></a></h1><p>Simon Frost</p><ul><li><a href="#overview">Overview</a></li><li><a href="#a-patch">A patch</a></li><li><a href="#two-fields-side-by-side">Two fields side by side</a></li><li><a href="#gluing-a-patch-to-itself">Gluing a patch to itself</a></li><li><a href="#gluing-is-compositional">Gluing is compositional</a></li><li><a href="#dynamics-restrict-to-patches">Dynamics restrict to patches</a></li><li><a href="#fields-joined-by-a-road">Fields joined by a road</a></li><li><a href="#summary">Summary</a></li></ul><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>A landscape is rarely one lattice. It is fields beside fields, a forest beside a crop, farms joined by roads. This vignette builds such landscapes by <strong>gluing</strong> patches, and shows that the gluing is a colimit: the landscape is determined by its patches and by which cells they share, and the dynamics of a cellular automaton on it are assembled from the dynamics on the patches.</p><p>The previous vignette treated a space as a set of cells, each with an ordered list of neighbours. Here the same space is drawn as a <strong>slot graph</strong>, a C-set (a functor from a small category to sets) with two kinds of part, cells and slots, and two maps from slots to cells:</p><ul><li><code>reader(s)</code> is the cell that slot <code>s</code> belongs to;</li><li><code>read(s)</code> is the cell it reads;</li><li>an attribute <code>index(s)</code> is the slot’s position in the reader’s list.</li></ul><p>A <strong>patch</strong> is a slot graph with a halo: cells beyond its edges that its cells read but that have no slots of their own. Two patches are glued by identifying one’s halo with the other’s edge cells. Because C-sets have all colimits, computed part by part, the glued landscape is a pushout. Its cells are those of the patches with the shared ones identified, and its slots are the slots of the patches side by side. Patches with chosen sets of shared cells (their legs) are <em>structured cospans</em> (<a href="#ref-Baez2020">Baez and Courser 2020</a>), and Catlab composes them with undirected wiring diagrams, as earlier vignettes composed models.</p><p>This is a <strong>research extension</strong>, beyond the papers the package implements. Every landscape below is checked against a CellularAutomataCore lattice built directly.</p><pre><code class="language-julia hljs">ENV[&quot;GKSwstype&quot;] = &quot;100&quot;
+using CategoricalCellularAutomata
+using CellularAutomataCore: CellularAutomataCore, CAProblem, solve, ReferenceBackend, Torus,
+                            Grid, HexGrid, GraphSpace, Life, Moore, Hexagonal, Constant,
+                            Periodic
+using Catlab: @relation, apex, legs, nparts, add_parts!, FinFunction
+using Plots
+using Random
+core_run(rule, space, u, n) = solve(CAProblem(rule, u, n; space); backend=ReferenceBackend()).u[end]</code></pre><h2 id="A-patch"><a class="docs-heading-anchor" href="#A-patch">A patch</a><a id="A-patch-1"></a><a class="docs-heading-anchor-permalink" href="#A-patch" title="Permalink"></a></h2><p><code>lattice_patch</code> makes a patch from a CellularAutomataCore lattice and a neighbourhood. Its cells come first, then the halo: the positions beyond the edges that the neighbourhood reaches. Its legs are its four faces. Each face is a strip two cells deep along one edge: the halo and the first layer of cells. Here is a 10 × 8 field with Moore neighbours:</p><pre><code class="language-julia hljs">patch = Grid(10, 8)
+P = lattice_patch(patch, Moore(1))
+g = apex(P)
+(cells=nparts(g, :Cell), slots=nparts(g, :Slot), interior=length(interior_cells(g)),
+ halo=length(halo_cells(g)), face_sizes=[length(collect(l[:Cell])) for l in legs(P)])</code></pre><pre><code class="nohighlight hljs">(cells = 120, slots = 640, interior = 80, halo = 40, face_sizes = [20, 20, 24, 24])</code></pre><pre><code class="language-julia hljs">coords = patch_coordinates(patch, Moore(1))
+inner, halo = interior_cells(g), halo_cells(g)
+face = collect(legs(P)[2][:Cell])
+plt = scatter(first.(Tuple.(coords[inner])), last.(Tuple.(coords[inner])); markershape=:square,
+              markersize=7, color=:seagreen, label=&quot;cells&quot;, aspect_ratio=1)
+scatter!(plt, first.(Tuple.(coords[halo])), last.(Tuple.(coords[halo])); markershape=:square,
+         markersize=7, color=:white, markerstrokecolor=:gray, label=&quot;halo&quot;)
+(x0, x1), (y0, y1) = extrema(first.(Tuple.(coords[face]))), extrema(last.(Tuple.(coords[face])))
+plot!(plt, Shape([x0, x1, x1, x0] .+ [-0.5, 0.5, 0.5, -0.5], [y0, y0, y1, y1] .+ [-0.5, -0.5, 0.5, 0.5]);
+      fillalpha=0, linecolor=:red, linewidth=2, label=&quot;high face, axis 1&quot;, legend=:outerright,
+      xlabel=&quot;axis 1&quot;, ylabel=&quot;axis 2&quot;)
+plt</code></pre><div id="fig-patch"><p><img src="../12_gluing_spaces_files/figure-commonmark/fig-patch-output-1.svg" alt/></p><p>Figure 1: A 10 × 8 patch: its cells (filled) and halo (open), with the high face along the first axis (the last layer of cells and the halo beyond it) outlined in red. Gluing this face to another patch’s low face makes each patch’s halo the other’s edge cells.</p></div><h2 id="Two-fields-side-by-side"><a class="docs-heading-anchor" href="#Two-fields-side-by-side">Two fields side by side</a><a id="Two-fields-side-by-side-1"></a><a class="docs-heading-anchor-permalink" href="#Two-fields-side-by-side" title="Permalink"></a></h2><p>A wiring diagram says which faces meet. Each box is a patch, and its ports are the legs in order: axis 1 low, axis 1 high, axis 2 low, axis 2 high. Two boxes sharing the junction <code>s</code> glue the first field’s high face to the second’s low face:</p><pre><code class="language-julia hljs">pair = @relation () begin
+    P(w, s, a1, a2)
+    P(s, e, b1, b2)
+end
+L, ι = glue(pair, Dict(:P =&gt; P))
+S = NeighbourhoodSpace(apex(L); boundary=0)</code></pre><pre><code class="nohighlight hljs">NeighbourhoodSpace(160 cells, 8 neighbour slots, 1 pinned)</code></pre><p><code>glue</code> returns the landscape and, for each box, where its patch’s cells went. Closing the landscape turns the halo that is still unglued into a single cell pinned to 0, as beyond a <code>Constant(0)</code> edge. The result should be a 20 × 8 grid. To check, place each patch’s cells by their coordinates. That gives a map of spaces from the landscape to the core’s grid, and it should preserve neighbours and be a bijection:</p><pre><code class="language-julia hljs">function core_cells(L, ι, offsets, patch, nbhd, core)
+    g = apex(L)
+    rank = Dict(c =&gt; k for (k, c) in enumerate(interior_cells(g)))
+    coords = patch_coordinates(patch, nbhd)
+    lin = LinearIndices(size(core))
+    image = zeros(Int, length(rank))
+    for (ιb, off) in zip(ι, offsets), c in 1:prod(size(patch))
+        image[rank[ιb[c]]] = lin[mod1.(Tuple(coords[c]) .+ off, size(core))...]
+    end
+    return image
+end
+grid = Grid(20, 8; boundary=Constant(0))
+image = core_cells(L, ι, [(0, 0), (10, 0)], patch, Moore(1), grid)
+f = SpaceMorphism(S, neighbourhood_space(grid, Moore(1)), image)
+(preserves_neighbours=is_morphism(f), bijective=sort(image) == 1:160)</code></pre><pre><code class="nohighlight hljs">(preserves_neighbours = true, bijective = true)</code></pre><p>Because the map preserves neighbours, Life on the landscape is Life on the grid. Over 40 steps, pulling the core’s run back along it matches the landscape’s own run:</p><pre><code class="language-julia hljs">function agree(rule, S, core, image, n; seed=1)
+    u = rand(Xoshiro(seed), 0:1, size(core)...)
+    x = vec(u)[image]                       # the initial state pulled back
+    for _ in 1:n
+        x = apply_local(rule, S, x)
+    end
+    return x == vec(core_run(rule, core, u, n))[image]
+end
+agree(Life(), S, grid, image, 40)</code></pre><pre><code class="nohighlight hljs">true</code></pre><h2 id="Gluing-a-patch-to-itself"><a class="docs-heading-anchor" href="#Gluing-a-patch-to-itself">Gluing a patch to itself</a><a id="Gluing-a-patch-to-itself-1"></a><a class="docs-heading-anchor-permalink" href="#Gluing-a-patch-to-itself" title="Permalink"></a></h2><p>A box may meet itself. Joining a patch’s two faces along the first axis makes a cylinder, and joining both pairs of faces makes a torus. These are coequalisers rather than pushouts, but <code>glue</code> computes every colimit the same way:</p><pre><code class="language-julia hljs">cylinder = @relation () begin
+    P(x, x, a, b)
+end
+torus = @relation () begin
+    P(x, x, y, y)
+end
+results = map([(cylinder, Grid(10, 8; boundary=(Periodic(), Constant(0)))),
+               (torus, Torus(10, 8))]) do (d, core)
+    L, ι = glue(d, Dict(:P =&gt; P))
+    S = NeighbourhoodSpace(apex(L); boundary=0)
+    image = core_cells(L, ι, [(0, 0)], patch, Moore(1), core)
+    f = SpaceMorphism(S, neighbourhood_space(core, Moore(1)), image)
+    return (halo_left=length(halo_cells(apex(L))), is_map=is_morphism(f),
+            life_agrees=agree(Life(), S, core, image, 40))
+end
+(cylinder=results[1], torus=results[2])</code></pre><pre><code class="nohighlight hljs">(cylinder = (halo_left = 20, is_map = true, life_agrees = true), torus = (halo_left = 0, is_map = true, life_agrees = true))</code></pre><p>On the torus every halo cell has been identified with a cell, so there is no boundary left. The same works on hexagonal patches, whose axial coordinates glue just like square ones:</p><pre><code class="language-julia hljs">H = lattice_patch(HexGrid(8, 6), Hexagonal(1))
+L, ι = glue(torus, Dict(:P =&gt; H))
+S = NeighbourhoodSpace(apex(L))
+image = core_cells(L, ι, [(0, 0)], HexGrid(8, 6), Hexagonal(1), HexGrid(8, 6))
+(is_map=is_morphism(SpaceMorphism(S, neighbourhood_space(HexGrid(8, 6)), image)),
+ life_agrees=agree(Life(), S, HexGrid(8, 6), image, 40))</code></pre><pre><code class="nohighlight hljs">(is_map = true, life_agrees = true)</code></pre><h2 id="Gluing-is-compositional"><a class="docs-heading-anchor" href="#Gluing-is-compositional">Gluing is compositional</a><a id="Gluing-is-compositional-1"></a><a class="docs-heading-anchor-permalink" href="#Gluing-is-compositional" title="Permalink"></a></h2><p>A landscape can be glued again along the junctions a diagram leaves outside, its outer ports. Two fields make a strip with two outer faces, <code>w</code> and <code>e</code>; two strips glued end to end make four fields in a row. Gluing in stages gives the same landscape as gluing all at once, because colimits compose. In the language of operads, open slot graphs are an <em>algebra</em> of undirected wiring diagrams:</p><pre><code class="language-julia hljs">strip = @relation (w, e) begin
+    P(w, s, a1, a2)
+    P(s, e, b1, b2)
+end
+S2, ι2 = glue(strip, Dict(:P =&gt; P))
+twice = @relation () begin
+    Q(x, y)
+    Q(y, z)
+end
+L4, ι4 = glue(twice, Dict(:Q =&gt; S2))
+four = @relation () begin
+    P(a, s1, b1, c1)
+    P(s1, s2, b2, c2)
+    P(s2, s3, b3, c3)
+    P(s3, d, b4, c4)
+end
+L4′, ι4′ = glue(four, Dict(:P =&gt; P))
+grid4 = Grid(40, 8; boundary=Constant(0))
+offsets = [(0, 0), (10, 0), (20, 0), (30, 0)]
+staged = core_cells(L4, [ι4[q][ι2[p]] for q in 1:2 for p in 1:2], offsets, patch, Moore(1), grid4)
+direct = core_cells(L4′, ι4′, offsets, patch, Moore(1), grid4)
+S4, S4′ = NeighbourhoodSpace(apex(L4); boundary=0), NeighbourhoodSpace(apex(L4′); boundary=0)
+(staged=agree(Life(), S4, grid4, staged, 40), direct=agree(Life(), S4′, grid4, direct, 40))</code></pre><pre><code class="nohighlight hljs">(staged = true, direct = true)</code></pre><p>A block of four fields needs corners. Each corner cell is in the halo of three patches and inside the fourth, and the colimit identifies all four copies through the faces they share:</p><pre><code class="language-julia hljs">block = @relation () begin
+    P(a1, m1, b1, n1)
+    P(m1, c1, b2, n2)
+    P(a2, m2, n1, d1)
+    P(m2, c2, n2, d2)
+end
+Lb, ιb = glue(block, Dict(:P =&gt; P))
+grid22 = Grid(20, 16; boundary=Constant(0))
+imageb = core_cells(Lb, ιb, [(0, 0), (10, 0), (0, 8), (10, 8)], patch, Moore(1), grid22)
+Sb = NeighbourhoodSpace(apex(Lb); boundary=0)
+agree(Life(), Sb, grid22, imageb, 40)</code></pre><pre><code class="nohighlight hljs">true</code></pre><h2 id="Dynamics-restrict-to-patches"><a class="docs-heading-anchor" href="#Dynamics-restrict-to-patches">Dynamics restrict to patches</a><a id="Dynamics-restrict-to-patches-1"></a><a class="docs-heading-anchor-permalink" href="#Dynamics-restrict-to-patches" title="Permalink"></a></h2><p>Configurations go the other way. A configuration on the landscape restricts to one on each patch, by pulling back along its inclusion. Restrictions to different patches agree wherever the patches share cells, and any family of patch configurations that agrees on shared cells comes from exactly one landscape configuration. The colimit of spaces is a limit of configurations.</p><p>The step of a local rule respects this. On each patch’s own cells, the landscape’s step equals the patch’s step, given the halo’s values from the landscape:</p><pre><code class="language-julia hljs">x = rand(Xoshiro(3), 0:1, nparts(apex(Lb), :Cell))
+y = apply_local(Life(), Sb, x[interior_cells(apex(Lb))])
+rank = Dict(c =&gt; k for (k, c) in enumerate(interior_cells(apex(Lb))))
+life(c, ns) = (s = sum(ns); s == 3 || (c == 1 &amp;&amp; s == 2) ? 1 : 0)
+halo_zero = copy(x)
+halo_zero[halo_cells(apex(Lb))] .= 0
+map(1:4) do b
+    yb = apply_local(life, g, halo_zero[ιb[b]])
+    return all(c -&gt; yb[c] == y[rank[ιb[b][c]]], interior_cells(g))
+end</code></pre><pre><code class="nohighlight hljs">4-element Vector{Bool}:
+ 1
+ 1
+ 1
+ 1</code></pre><p>This is how parallel simulations of large lattices work: each processor holds a patch and its halo, steps the patch, and exchanges halos with its neighbours. Here that procedure is the statement that configurations form a limit over the diagram of patches.</p><h2 id="Fields-joined-by-a-road"><a class="docs-heading-anchor" href="#Fields-joined-by-a-road">Fields joined by a road</a><a id="Fields-joined-by-a-road-1"></a><a class="docs-heading-anchor-permalink" href="#Fields-joined-by-a-road" title="Permalink"></a></h2><p>Patches need not be lattices, nor glued edge to edge. Below, three 15 × 15 fields lie apart, and a road of seven nodes runs past them. Field <code>b</code> is joined to road node <code>3b - 2</code>: the field’s centre gets a ninth neighbour, the node, and the node one more neighbour, the field’s centre. A small <strong>connector</strong> patch holds just these links. Its six cells are the three field centres and three road nodes, and its slots are numbered after the slots the cells already have. Gluing the fields, the road and the connector together adds the links to both:</p><pre><code class="language-julia hljs">field = Grid(15, 15)
+F = lattice_patch(field, Moore(1))
+n = nparts(apex(F), :Cell)
+centre = findfirst(==(CartesianIndex(8, 8)), patch_coordinates(field, Moore(1)))
+faces = [FinFunction(Vector{Int}(collect(l[:Cell])), n) for l in legs(F)]
+Fc = OpenSlotGraph{Int}(apex(F), faces..., FinFunction([centre], n))
+
+path = GraphSpace([[2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7], [6]])
+road = slot_graph(neighbourhood_space(path))
+R = OpenSlotGraph{Int}(road, FinFunction([1, 4, 7], 7))
+
+link = SlotGraph{Int}()
+add_parts!(link, :Cell, 6)                  # field centres 1-3, road nodes 4-6
+add_parts!(link, :Slot, 6; reader=[1, 2, 3, 4, 5, 6], read=[4, 5, 6, 1, 2, 3],
+           index=[9, 9, 9, 2, 3, 2])        # after a centre&#39;s 8 and a node&#39;s 1, 2, 1
+C = OpenSlotGraph{Int}(link, FinFunction([1], 6), FinFunction([2], 6), FinFunction([3], 6),
+                       FinFunction([4, 5, 6], 6))
+
+farms = @relation () begin
+    F(a1, b1, c1, d1, f1)
+    F(a2, b2, c2, d2, f2)
+    F(a3, b3, c3, d3, f3)
+    Road(r)
+    Link(f1, f2, f3, r)
+end
+Lr, ιr = glue(farms, Dict(:F =&gt; Fc, :Road =&gt; R, :Link =&gt; C))
+Sr = NeighbourhoodSpace(apex(Lr); boundary=0)
+lengths = length.(Sr.neighbours[1:free_cells(Sr)])
+(cells=free_cells(Sr), neighbour_counts=sort(unique(lengths)),
+ centres_with_nine=count(==(9), lengths))</code></pre><pre><code class="nohighlight hljs">(cells = 682, neighbour_counts = [2, 3, 8, 9], centres_with_nine = 3)</code></pre><p>Now let a blight spread from the corner of the first field. A cell is infected once any neighbour is. It crosses each field at one cell a step, and travels between fields only by the road:</p><pre><code class="language-julia hljs">spread(c, ns) = c == 1 || any(==(1), ns) ? 1 : 0
+rank = Dict(c =&gt; k for (k, c) in enumerate(interior_cells(apex(Lr))))
+cell(b, c) = rank[ιr[b][c]]                 # cell c of field b in the landscape
+x = zeros(Int, free_cells(Sr))
+x[cell(1, 1)] = 1                           # the corner (1, 1) of the first field
+first_infected = fill(-1, free_cells(Sr))
+first_infected[cell(1, 1)] = 0
+for t in 1:60
+    global x = apply_local(spread, Sr, x)
+    first_infected[(x .== 1) .&amp; (first_infected .&lt; 0)] .= t
+end
+times = [reshape([first_infected[cell(b, c)] for c in 1:225], 15, 15) for b in 1:3]
+(reach_centres=[t[8, 8] for t in times], all_infected_by=[maximum(t) for t in times])</code></pre><pre><code class="nohighlight hljs">(reach_centres = [7, 12, 15], all_infected_by = [14, 19, 22])</code></pre><pre><code class="language-julia hljs">plot([heatmap(t&#39;; clims=(0, maximum(maximum.(times))), aspect_ratio=1, title=&quot;field $b&quot;,
+              framestyle=:none, c=:viridis) for (b, t) in enumerate(times)]...;
+     layout=(1, 3), size=(1000, 300))</code></pre><div id="fig-road"><p><img src="../12_gluing_spaces_files/figure-commonmark/fig-road-output-1.svg" alt/></p><p>Figure 2: Time of first infection in three fields joined only by a road: the blight starts in the corner of field 1, reaches its centre in 7 steps, then travels along the road and spreads out from each later field’s centre.</p></div><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><table><tr><th style="text-align: right">construction</th><th style="text-align: right">as a colimit</th><th style="text-align: right">checked against</th></tr><tr><td style="text-align: right">two fields side by side</td><td style="text-align: right">pushout along a shared face</td><td style="text-align: right"><code>Grid(20, 8)</code></td></tr><tr><td style="text-align: right">cylinder, torus</td><td style="text-align: right">coequaliser of a patch’s faces</td><td style="text-align: right"><code>Grid</code> with periodic and constant edges, <code>Torus</code> (square and hexagonal)</td></tr><tr><td style="text-align: right">strips of strips, blocks</td><td style="text-align: right">colimits of wiring diagrams, composed</td><td style="text-align: right"><code>Grid(40, 8)</code>, <code>Grid(20, 16)</code></td></tr><tr><td style="text-align: right">fields and a road</td><td style="text-align: right">pushout with a connector that adds slots</td><td style="text-align: right">neighbour counts; dynamics</td></tr></table><p>Gluing identifies cells and never slots, so <code>glue</code> computes the colimit by union-find, in time linear in the size of the patches. With <code>algorithm = :catlab</code> it calls Catlab’s general colimit of structured cospans instead. The test suite checks that the two agree, but Catlab’s is far slower beyond a few hundred cells.</p><div id="refs" class="references csl-bib-body hanging-indent"><div id="ref-Baez2020" class="csl-entry"><p>Baez, John C., and Kenny Courser. 2020. “Structured Cospans.” <em>Theory and Applications of Categories</em> 35 (48): 1771–822. <a href="https://tac.mta.ca/tac/volumes/35/48/35-48abs.html">https://tac.mta.ca/tac/volumes/35/48/35-48abs.html</a>.</p></div></div></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../11_geometries/">« Geometries</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Tuesday 3 November 2026 15:45">Tuesday 3 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
