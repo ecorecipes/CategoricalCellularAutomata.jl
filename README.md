@@ -31,7 +31,10 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
 - **Research extensions, beyond the papers**: stochastic cellular automata as Markov kernels (exact
   distributions on small groups, couplings of paired automata, sampling on the core), and composition of
   CellularAutomataCore `CAModel`s along Catlab undirected wiring diagrams over shared layers (`oapply`), with
-  one owner per layer and per-model random numbers.
+  one owner per layer and per-model random numbers, on square or hexagonal lattices and on graphs; and
+  geometries beyond groups: any core space as a set of cells with neighbour lists (a coalgebra), maps of
+  spaces along which configurations pull back and local rules commute (coverings of tori, reflecting edges
+  as a fold of a doubled torus), constant edges as pinned cells.
 
 ## Quick Start
 
@@ -77,6 +80,7 @@ Requires Julia â‰¥ 1.12.
 | 8 | [Free products and weak products](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/08_free_products/08_free_products.md) | Free products of groups, the weak product of generalised automata, and why pairs are not unique |
 | 9 | [Stochastic cellular automata in a Markov category](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/09_stochastic_ca_markov/09_stochastic_ca_markov.md) | Research extension: exact distributions, copying, couplings and draw numbers, correlated composites |
 | 10 | [Composing models over shared layers](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/10_composing_models/10_composing_models.md) | Research extension: crop, aphid and spraying models composed with `@relation` and `oapply` |
+| 11 | [Geometries](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/11_geometries/11_geometries.md) | Research extension: square and hexagonal tori as Cayley spaces, periodic and reflecting edges as quotients, constant edges as pinned cells, graphs, and composites on any geometry |
 
 Each vignette is also published as a tutorial in the
 [documentation](https://ecorecipes.github.io/CategoricalCellularAutomata.jl/); the sources are the `.qmd` files in

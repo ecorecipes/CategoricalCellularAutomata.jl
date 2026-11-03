@@ -17,7 +17,8 @@ Part of the ecorecipes cellular-automata ecosystem.
 """
 module CategoricalCellularAutomata
 
-using Catlab: Catlab, @instance, ThCartesianCategory, FreeCartesianCategory, functor,
+using Catlab: Catlab, @instance, ThCategory, ThCartesianCategory, FreeCartesianCategory,
+              functor,
               generator,
               to_hom_expr
 import Catlab.Theories: dom, codom, id, compose, otimes, ⊗, munit, braid, mcopy, delete,
@@ -53,6 +54,9 @@ export StochasticCA, distribution, marginal, stochastic_pair
 export OpenCAModel, oapply
 # CellularAutomataCore
 export torus_group, torus_space
+# Geometries: neighbourhood spaces and the maps between them
+export NeighbourhoodSpace, neighbourhood_space, free_cells, cayley_space, apply_local,
+       SpaceMorphism, is_morphism, covering, reflection_fold
 # Exceptions: the root and the concrete types under it
 export CategoricalCellularAutomataError, GroupMismatchError, DomainMismatchError,
        LayerConflictError
@@ -64,6 +68,7 @@ include("ca.jl")
 include("cartesian.jl")
 include("chl.jl")
 include("bridge.jl")
+include("spaces.jl")
 include("homomorphisms.jl")
 include("generalized.jl")
 include("linear.jl")

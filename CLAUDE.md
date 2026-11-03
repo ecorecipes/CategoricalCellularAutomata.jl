@@ -38,6 +38,9 @@ the `references.bib` files here are synced copies.
   layered rules exactly. Catlab's `oapply` is extended, not shadowed.
 - A configuration over a torus group is exactly a CellularAutomataCore state (first axis fastest, element
   `g` at `CartesianIndex(g .+ 1)`); the bridge maps elements to centred offsets.
+- A `NeighbourhoodSpace` built from a core space steps exactly as the core does (neighbours in the core's
+  order; `Constant` edges as pinned cells); maps of spaces are tested by commuting with local rules (every
+  rule for coverings, reflection-symmetric rules for `reflection_fold`, and an anisotropic rule must fail).
 - Constructions faithful to the papers and the research extensions beyond them (stochastic cellular automata
   in a Markov category) are documented separately, and the extensions are labelled as such.
 
@@ -55,11 +58,14 @@ the `references.bib` files here are synced copies.
   products. `src/linear.jl`: `LinearCA` (group-algebra coefficients, Gauss–Jordan inverse mod p).
   `src/monotone.jl`: `is_monotone`. Research extensions: `src/markov.jl` (`StochasticCA`, exact
   `distribution`, `marginal`, `stochastic_pair`, core sampling) and `src/composition.jl` (`OpenCAModel`,
-  `oapply` for core `CAModel`s over undirected wiring diagrams).
+  `oapply` for core `CAModel`s over undirected wiring diagrams, on square or hexagonal lattices and graphs)
+  and `src/spaces.jl` (`NeighbourhoodSpace` from any core space, `SpaceMorphism`, `pullback`, `covering`,
+  `reflection_fold`, `cayley_space`).
 - `test/runtests.jl`, `test/test_groups.jl`, `test/test_cartesian.jl` (category and product laws with random
   lookup-table rules), `test/test_chl_bridge.jl`, `test/test_generalized.jl` (homomorphisms, free
   products, generalised, linear and monotone automata), `test/test_markov.jl` (the research
-  extensions), `test/test_errors.jl`, `test/test_docstrings.jl`: the suite,
+  extensions), `test/test_spaces.jl` (geometries and composites on them), `test/test_errors.jl`,
+  `test/test_docstrings.jl`: the suite,
   seeded RNGs only.
 
 ## Commands

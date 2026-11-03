@@ -48,6 +48,7 @@ struct _Box{R}
     targets::Vector{Symbol}       # the composite layer of each
     owned::Vector{Bool}           # whether the box updates that layer
     neighbours::Vector{Int}       # positions of the box's neighbours in the composite's
+    all::Bool                     # on a graph: every neighbour, in the graph's order
     single::Bool                  # a one-layer model has scalar cells
     seedmix::UInt64
 end
@@ -70,7 +71,8 @@ function (r::_ComposedRule)(cell, nbrs, ctx)
     out = cell
     for box in r.boxes
         view = _view(box, cell)
-        nb = Tuple(_view(box, nbrs[i]) for i in box.neighbours)
+        nb = box.all ? Tuple(_view(box, n) for n in nbrs) :
+             Tuple(_view(box, nbrs[i]) for i in box.neighbours)
         p = ctx.p isa NamedTuple && haskey(ctx.p, box.name) ? getfield(ctx.p, box.name) :
             ctx.p
         bctx = CAC.CellContext(p, ctx.index, ctx.t, ctx.cellid, ctx.seed ⊻ box.seedmix,
@@ -86,7 +88,7 @@ function (r::_ComposedRule)(cell, nbrs, ctx)
 end
 
 """
-    oapply(diagram, boxes; dims=2, name=:composite, shared_randomness=false) -> CAModel
+    oapply(diagram, boxes; dims=2, space=nothing, name=:composite, shared_randomness=false) -> CAModel
 
 Compose CellularAutomataCore models along an undirected wiring diagram, such as
 one written with Catlab's `@relation`. `boxes` gives an [`OpenCAModel`](@ref)
@@ -108,12 +110,16 @@ The composite's parameters are the boxes' default parameters, one
 are the union of the boxes'. Each box draws its own random numbers, from a
 seed derived from its name, unless `shared_randomness=true`, in which case
 boxes that use the same draw numbers see the same uniforms. Every box's rule
-must name its neighbourhood (`Moore`, `VonNeumann`, `Offsets`, ...), which is
-resolved on a square lattice of `dims` dimensions. The composite must have at
+must name its neighbourhood (`Moore`, `VonNeumann`, `Hexagonal`, `Offsets`,
+...), which is resolved on `space`, a CellularAutomataCore space of the kind the
+composite will run on (a hexagonal grid for `Hexagonal` neighbourhoods; only
+its shape matters, not its size), or, if `space` is `nothing`, on a square
+lattice of `dims` dimensions. On a `GraphSpace` every box must read
+`GraphNeighbours()`, and the composite does too. The composite must have at
 least two layers.
 """
 function oapply(d::AbstractUWD, boxes::AbstractVector{OpenCAModel}; dims::Integer=2,
-                name::Symbol=:composite, shared_randomness::Bool=false)
+                space=nothing, name::Symbol=:composite, shared_randomness::Bool=false)
     nb = nparts(d, :Box)
     length(boxes) == nb ||
         throw(ArgumentError("the diagram has $nb boxes, but $(length(boxes)) models were given"))
@@ -152,12 +158,20 @@ function oapply(d::AbstractUWD, boxes::AbstractVector{OpenCAModel}; dims::Intege
     length(order) >= 2 ||
         throw(ArgumentError("a composite needs at least two layers, got $(length(order))"))
 
-    # the union neighbourhood, resolved on a lattice large enough for any radius in use
-    lattice = CAC.Torus(ntuple(_ -> 201, dims)...)
+    # the union neighbourhood, resolved on a lattice of the given shape large enough for any
+    # radius in use (on a graph, every box reads all neighbours)
+    graph = space isa CAC.GraphSpace
+    lattice = space === nothing ? CAC.Torus(ntuple(_ -> 201, dims)...) :
+              graph ? space : _large(space)
     offsets_of = map(boxes) do open
         n = CAC.neighbourhood(open.model.rule)
         n === nothing &&
             throw(ArgumentError("the rule of $(open.model.name) must name its neighbourhood to be composed"))
+        if graph
+            n isa CAC.GraphNeighbours ||
+                throw(ArgumentError("on a GraphSpace the rule of $(open.model.name) must read GraphNeighbours(), not $n"))
+            return CartesianIndex{1}[]
+        end
         return collect(CAC.neighbourhood_offsets(n, lattice))
     end
     union_offsets = unique(reduce(vcat, offsets_of))
@@ -166,12 +180,13 @@ function oapply(d::AbstractUWD, boxes::AbstractVector{OpenCAModel}; dims::Intege
         layers = [s.name for s in CAC.states(open.model)]
         targets = [target[(b, l)] for l in layers]
         owned = [!(l in open.reads) for l in layers]
-        nbrs = _positions(offsets_of[b], union_offsets)
+        nbrs = graph ? Int[] : Vector{Int}(_positions(offsets_of[b], union_offsets))
         mix = shared_randomness ? UInt64(0) : hash(boxnames[b])
-        return _Box(boxnames[b], open.model.rule, layers, targets, owned, nbrs,
+        return _Box(boxnames[b], open.model.rule, layers, targets, owned, nbrs, graph,
                     length(layers) == 1, mix)
     end
-    rule = CAC.LocalRule(_ComposedRule(Tuple(prepared)), CAC.Offsets(union_offsets))
+    rule = CAC.LocalRule(_ComposedRule(Tuple(prepared)),
+                         graph ? CAC.GraphNeighbours() : CAC.Offsets(union_offsets))
 
     parameters = [CAC.Parameter(boxnames[b], CAC.defaults(open.model))
                   for (b, open) in enumerate(boxes)]
@@ -187,6 +202,14 @@ function oapply(d::AbstractUWD, boxes::AbstractVector{OpenCAModel}; dims::Intege
                                    description=declared[t].description) for t in order]
     return CAC.CAModel(rule; name, states=statevars, parameters, fields, covariates,
                        description="composite of " * join(boxnames, ", "))
+end
+
+# A lattice of the same shape and edges as `space`, large enough for any radius in use.
+function _large(space::CAC.Lattice{N,S}) where {N,S}
+    return CAC.Lattice(ntuple(_ -> 201, N), CAC.boundaries(space), S())
+end
+function _large(space)
+    return throw(ArgumentError("space must be a CellularAutomataCore lattice or GraphSpace, got $space"))
 end
 
 function oapply(d::AbstractUWD, boxes::NamedTuple; kwargs...)
