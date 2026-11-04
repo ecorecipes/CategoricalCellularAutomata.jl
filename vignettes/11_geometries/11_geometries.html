@@ -2460,7 +2460,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <pre><code>true</code></pre>
 </div>
 </div>
-<p>The run on the doubled torus is the run on the field, mirrored into each quarter, with the wind blowing outwards from the mirror lines:</p>
+<p>The run on the doubled torus is the run on the field, mirrored into each quarter (purple susceptible, green recovered, yellow infected); on the mirrored halves the wind blows from the east:</p>
 <div id="24" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">code</span>(u) <span class="op">=</span> <span class="fu">map</span>(s <span class="op">-&gt;</span> s <span class="op">==</span> <span class="op">:</span>S ? <span class="fl">0</span> <span class="op">:</span> s <span class="op">==</span> <span class="op">:</span>I ? <span class="fl">2</span> <span class="op">:</span> <span class="fl">1</span>, u)</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">heatmap</span>(<span class="fu">code</span>(sol.u[<span class="kw">end</span>])<span class="ch">&#39;; c=:viridis, colorbar=false, clims=(0, 2),</span></span>
