@@ -37,6 +37,11 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
   as a fold of a doubled torus), constant edges as pinned cells; and landscapes glued from patches:
   spaces as C-sets of cells and neighbour slots, lattice patches with halos, gluing as a colimit along
   undirected wiring diagrams (`glue`), on which a local rule restricts to each patch.
+- **Formal proofs**: a Lean 4 / Mathlib library in [`proofs/`](proofs/README.md) proves, for any group and
+  alphabet, the laws the test suite checks numerically: shifts and pullbacks, equivariance and equality at
+  the identity, composition and pairing, factorisation of generalised automata and pullback commuting with
+  local rules, and gluing (configurations of a glued space form a limit; a landscape's step on a patch is
+  the patch's step).
 
 ## Quick Start
 
