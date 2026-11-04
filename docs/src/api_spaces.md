@@ -17,7 +17,8 @@ cayley_space
 apply_local
 SpaceMorphism
 is_morphism
-pullback(::SpaceMorphism, ::AbstractVector)
+pullback(::SpaceMorphism, ::AbstractArray)
+pullback(::SpaceMorphism, ::CellularAutomataCore.CAProblem)
 covering
 reflection_fold
 compose(::SpaceMorphism, ::SpaceMorphism)

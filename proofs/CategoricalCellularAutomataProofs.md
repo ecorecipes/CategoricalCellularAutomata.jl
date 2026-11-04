@@ -19,12 +19,19 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `ca_eq_iff` | `σ == τ` | two automata are equal when they agree at the identity |
 | `ca_id`, `ca_comp` | `id`, `compose` | the identity, and composites with memory set `T S` |
 | `ca_pair` | `pair` | pairing over the disjoint union of memory sets |
+| `CAObj G`, `IsCA` | `FullShift`, `CellularAutomaton` | alphabets, and the maps of configurations that are cellular automata |
+| `CartesianMonoidalCategory (CAObj G)` | the Catlab `@instance` of `ThCartesianCategory` | CA(G) is a cartesian monoidal category: `compose`, `id`, `otimes`, `munit`, `proj1`, `proj2`, `pair` |
+| `isCA_iff_shift_comm_and_local` | `is_equivariant`, `cellular_automaton` | Curtis–Hedlund–Lyndon: a cellular automaton is an equivariant map that is local at the identity |
+| `isCA_iff_shift_comm` | `cellular_automaton`, `minimal_neighbourhood` | over a finite group, every equivariant map is a cellular automaton |
+| `linCA a` | `LinearCA(G, coefficients; p)` | `τ(x)(g) = Σ_s a_s x(s g)` |
+| `linCA_mul`, `linCA_pow` | `compose`, `^` for `LinearCA` | composition and powers are products in the group algebra |
 | `gca φ S μ` | `GeneralizedCA(φ, S, μ)` | `T(x)(h) = μ((x(s φ(h)))_{s ∈ S})` |
 | `gca_eq_pullback_ca` | `factorize` | `T = φ* ∘ τ` |
 | `pullback_ca` | `pullback`, `SpaceMorphism` | pullback commutes with local rules: `φ* ∘ τ_{φ(S)} = τ_S ∘ φ*` |
 | `gca_comp` | `compose` | generalised automata compose along `φ ∘ ψ` |
 | `gluedConfigEquiv`, `exists_unique_glued_config` | `glue` | configurations of a glued space are the compatible families on its patches (a limit) |
 | `step_restrict`, `step_eq_of_cover` | `glue`, `apply_local` | the landscape's step on a patch's interior is the patch's step |
+| `SpaceMap`, `SpaceMap.run_pullback` | `SpaceMorphism`, `pullback(f, prob; space)` | a problem moved along a map of spaces (slots reordered, the image's rule and random numbers) runs the pullback of the original run |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
 main theorem uses (only `propext`, `Classical.choice` and `Quot.sound` are expected).
@@ -192,6 +199,327 @@ theorem ca_pair (S : I → G) (μ : (I → A) → B) (T : J → G) (ν : (J → 
       (ca S μ x g, ca T ν x g) := rfl
 
 end Monoid
+
+end CategoricalCellularAutomataProofs
+```
+
+
+<!-- CategoricalCellularAutomataProofs/Category.lean -->
+
+# The cartesian category of cellular automata over a group
+
+```lean
+import CategoricalCellularAutomataProofs.CellularAutomata
+import Mathlib.CategoryTheory.Monoidal.Cartesian.Basic
+import Mathlib.Data.Finite.Prod
+import Mathlib.Data.Finite.Sum
+```
+
+The package makes the cellular automata over a group `G` a Catlab instance of
+`ThCartesianCategory`: the objects are full shifts `A^G` (one for each alphabet `A`), the
+morphisms are cellular automata, composition is `compose`, the product of `A^G` and `B^G` is
+`(A × B)^G` (`otimes`), with `proj1`, `proj2` and `pair`, and the unit `munit()` is the
+one-letter alphabet.
+
+Here the category is built in Mathlib: an object is an alphabet, a morphism is a map of
+configurations that *is* a cellular automaton (has a finite memory set and a local rule), and
+Mathlib's `CartesianMonoidalCategory.ofChosenFiniteProducts` turns the terminal object and the
+binary products into the cartesian monoidal structure, with all its coherence laws (the
+associator, unitors and braiding are then the ones the package's strict products realise).
+
+```lean
+namespace CategoricalCellularAutomataProofs
+
+open CategoryTheory Limits
+
+universe u
+
+variable (G : Type u) [Monoid G]
+
+/-- A map of configurations is a cellular automaton when it has a finite memory set `S` and
+a local rule `μ`. -/
+def IsCA {A B : Type u} (f : Config G A → Config G B) : Prop :=
+  ∃ (I : Type u) (_ : Finite I) (S : I → G) (μ : (I → A) → B), f = ca S μ
+
+variable {G}
+
+theorem isCA_ca {A B : Type u} {I : Type u} [Finite I] (S : I → G) (μ : (I → A) → B) :
+    IsCA G (ca S μ) :=
+  ⟨I, inferInstance, S, μ, rfl⟩
+
+theorem isCA_id (A : Type u) : IsCA G (id : Config G A → Config G A) :=
+  ⟨PUnit, inferInstance, fun _ => 1, fun p => p PUnit.unit, by funext x g; simp [ca]⟩
+
+theorem isCA_comp {A B C : Type u} {f : Config G A → Config G B} {g : Config G B → Config G C}
+    (hf : IsCA G f) (hg : IsCA G g) : IsCA G (g ∘ f) := by
+  obtain ⟨J, _, T, ν, rfl⟩ := hf
+  obtain ⟨I, _, S, μ, rfl⟩ := hg
+  refine ⟨I × J, inferInstance, fun p => T p.2 * S p.1,
+    fun q => μ (fun i => ν (fun j => q (i, j))), ?_⟩
+  funext x
+  exact ca_comp S μ T ν x
+
+/-- A cellular automaton is equivariant: it commutes with every shift. -/
+theorem IsCA.shift_comm {A B : Type u} {f : Config G A → Config G B} (hf : IsCA G f) (g : G)
+    (x : Config G A) : f (shift g x) = shift g (f x) := by
+  obtain ⟨I, _, S, μ, rfl⟩ := hf
+  exact ca_shift S μ g x
+
+/-- An alphabet, as an object of the category of cellular automata over `G` (the full shift
+`A^G`). The group is a parameter of the type, so each group has its own category. -/
+@[nolint unusedArguments]
+structure CAObj (G : Type u) [Monoid G] where
+  /-- the alphabet -/
+  α : Type u
+
+/-- The category of cellular automata over `G`: morphisms are the maps of configurations that
+are cellular automata, composed as maps. -/
+instance : Category (CAObj G) where
+  Hom X Y := { f : Config G X.α → Config G Y.α // IsCA G f }
+  id X := ⟨id, isCA_id X.α⟩
+  comp f g := ⟨g.1 ∘ f.1, isCA_comp f.2 g.2⟩
+
+@[ext] theorem CAObj.hom_ext {X Y : CAObj G} {f g : X ⟶ Y} (h : f.1 = g.1) : f = g :=
+  Subtype.ext h
+
+@[simp] theorem CAObj.id_val (X : CAObj G) : (𝟙 X : X ⟶ X).1 = id := rfl
+
+@[simp] theorem CAObj.comp_val {X Y Z : CAObj G} (f : X ⟶ Y) (g : Y ⟶ Z) :
+    (f ≫ g).1 = g.1 ∘ f.1 := rfl
+
+/-- The one-letter alphabet, the unit `munit()`. -/
+def unitObj : CAObj G := ⟨PUnit⟩
+
+/-- The product alphabet `A × B` (`otimes`). -/
+def prodObj (X Y : CAObj G) : CAObj G := ⟨X.α × Y.α⟩
+
+/-- The first projection `proj1`: memory set `{1}`, rule `fst`. -/
+def fstHom (X Y : CAObj G) : prodObj X Y ⟶ X :=
+  ⟨ca (fun _ : PUnit => 1) (fun p => (p PUnit.unit).1), isCA_ca _ _⟩
+
+/-- The second projection `proj2`: memory set `{1}`, rule `snd`. -/
+def sndHom (X Y : CAObj G) : prodObj X Y ⟶ Y :=
+  ⟨ca (fun _ : PUnit => 1) (fun p => (p PUnit.unit).2), isCA_ca _ _⟩
+
+@[simp] theorem fstHom_apply (X Y : CAObj G) (x : Config G (X.α × Y.α)) (g : G) :
+    (fstHom X Y).1 x g = (x g).1 := by
+  simp [fstHom, ca]
+
+@[simp] theorem sndHom_apply (X Y : CAObj G) (x : Config G (X.α × Y.α)) (g : G) :
+    (sndHom X Y).1 x g = (x g).2 := by
+  simp [sndHom, ca]
+
+/-- The pairing `pair(f, g)` of two cellular automata is a cellular automaton (over the
+disjoint union of their memory sets). -/
+def pairHom {W X Y : CAObj G} (f : W ⟶ X) (g : W ⟶ Y) : W ⟶ prodObj X Y :=
+  ⟨fun x h => (f.1 x h, g.1 x h), by
+    obtain ⟨I, _, S, μ, hS⟩ := f.2
+    obtain ⟨J, _, T, ν, hT⟩ := g.2
+    refine ⟨I ⊕ J, inferInstance, Sum.elim S T,
+      fun p => (μ (fun i => p (Sum.inl i)), ν (fun j => p (Sum.inr j))), ?_⟩
+    funext x h
+    rw [hS, hT]
+    exact (ca_pair S μ T ν x h).symm⟩
+
+/-- The product cone: `(A × B)^G` with its projections is a product of `A^G` and `B^G`. -/
+def prodIsLimit (X Y : CAObj G) : IsLimit (BinaryFan.mk (fstHom X Y) (sndHom X Y)) :=
+  BinaryFan.IsLimit.mk _ (fun f g => pairHom f g)
+    (fun f g => by ext x h; simp [pairHom])
+    (fun f g => by ext x h; simp [pairHom])
+    (fun f g m h₁ h₂ => by
+      ext x h
+      have e₁ := congrFun (congrFun (congrArg Subtype.val h₁) x) h
+      have e₂ := congrFun (congrFun (congrArg Subtype.val h₂) x) h
+      simp only [CAObj.comp_val, Function.comp_apply, BinaryFan.mk_fst, BinaryFan.mk_snd,
+        fstHom_apply, sndHom_apply] at e₁ e₂
+      show m.1 x h = (f.1 x h, g.1 x h)
+      exact Prod.ext e₁ e₂)
+
+/-- The one-letter alphabet is terminal: the only map into it is a cellular automaton with an
+empty memory set. -/
+def unitIsTerminal : IsTerminal (unitObj : CAObj G) :=
+  IsTerminal.ofUniqueHom
+    (fun X => ⟨fun _ _ => PUnit.unit, ⟨PEmpty, inferInstance, PEmpty.elim,
+      fun _ => PUnit.unit, rfl⟩⟩)
+    (fun X m => by ext x h; rfl)
+
+/-- **The cartesian category CA(G).** The cellular automata over `G` form a cartesian monoidal
+category, with the product of alphabets as the monoidal product and the one-letter alphabet as
+its unit: the structure the package's Catlab instance of `ThCartesianCategory` asserts. -/
+instance : CartesianMonoidalCategory (CAObj G) :=
+  .ofChosenFiniteProducts ⟨_, unitIsTerminal⟩ (fun X Y => ⟨_, prodIsLimit X Y⟩)
+
+end CategoricalCellularAutomataProofs
+```
+
+
+<!-- CategoricalCellularAutomataProofs/CurtisHedlundLyndon.lean -->
+
+# Curtis–Hedlund–Lyndon
+
+```lean
+import CategoricalCellularAutomataProofs.Category
+import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Fintype.Basic
+```
+
+The package decides whether a map of configurations is a cellular automaton
+(`is_equivariant`, `cellular_automaton`, `minimal_neighbourhood`) by checking that it commutes
+with the shifts and that its value at the identity depends on finitely many cells. This file
+proves that test correct, in the uniform form that needs no topology: over any group, a map of
+configurations (into a nonempty alphabet) is a cellular automaton exactly when it commutes
+with the shifts and its value at the identity depends only on the cells of some finite set.
+Over a finite group the second condition always holds, so a map is a cellular automaton
+exactly when it commutes with the shifts, with the whole group as a memory set.
+
+```lean
+namespace CategoricalCellularAutomataProofs
+
+universe u
+
+variable {G : Type u} [Monoid G] {A B : Type u}
+
+/-- A map whose value at the identity depends only on the cells of `S`. -/
+def LocalAt (S : Finset G) (f : Config G A → Config G B) : Prop :=
+  ∀ x y : Config G A, (∀ s ∈ S, x s = y s) → f x 1 = f y 1
+
+/-- A cellular automaton's value at the identity depends only on its memory set. -/
+theorem IsCA.exists_localAt [DecidableEq G] {f : Config G A → Config G B} (hf : IsCA G f) :
+    ∃ S : Finset G, LocalAt S f := by
+  obtain ⟨I, _, S, μ, rfl⟩ := hf
+  have := Fintype.ofFinite I
+  refine ⟨Finset.univ.image S, fun x y h => ?_⟩
+  simp only [ca_apply, mul_one]
+  congr 1
+  funext i
+  exact h (S i) (Finset.mem_image_of_mem S (Finset.mem_univ i))
+
+/-- **Curtis–Hedlund–Lyndon (uniform form).** Over any group, a map of configurations into
+a nonempty alphabet is a cellular automaton exactly when it commutes with the shifts and its
+value at the identity depends only on a finite set of cells; that set is then a memory set. -/
+theorem isCA_iff_shift_comm_and_local [DecidableEq G] [Nonempty A]
+    (f : Config G A → Config G B) :
+    IsCA G f ↔ (∀ g x, f (shift g x) = shift g (f x)) ∧ ∃ S : Finset G, LocalAt S f := by
+  constructor
+  · intro hf
+    exact ⟨hf.shift_comm, hf.exists_localAt⟩
+  · rintro ⟨hshift, S, hS⟩
+    classical
+    let ext : (S → A) → Config G A := fun p g =>
+      if h : g ∈ S then p ⟨g, h⟩ else Classical.arbitrary A
+    refine ⟨S, inferInstance, fun s => s.1, fun p => f (ext p) 1, ?_⟩
+    funext x g
+    rw [apply_eq_apply_one_shift f hshift x g, ca_apply]
+    refine hS _ _ (fun s hs => ?_)
+    simp [ext, hs, shift]
+
+/-- **Curtis–Hedlund–Lyndon on a finite group.** A map of configurations over a finite group
+is a cellular automaton exactly when it commutes with the shifts; the whole group serves as
+its memory set (`cellular_automaton` recovers the rule, `minimal_neighbourhood` shrinks the
+set). -/
+theorem isCA_iff_shift_comm [Finite G] (f : Config G A → Config G B) :
+    IsCA G f ↔ ∀ g x, f (shift g x) = shift g (f x) := by
+  constructor
+  · exact fun hf => hf.shift_comm
+  · intro hshift
+    refine ⟨G, inferInstance, id, fun p => f p 1, ?_⟩
+    funext x g
+    rw [apply_eq_apply_one_shift f hshift x g]
+    rfl
+
+end CategoricalCellularAutomataProofs
+```
+
+
+<!-- CategoricalCellularAutomataProofs/Linear.lean -->
+
+# Linear cellular automata and the group algebra
+
+```lean
+import CategoricalCellularAutomataProofs.Category
+import Mathlib.Algebra.MonoidAlgebra.Defs
+import Mathlib.Tactic.Ring
+```
+
+A linear cellular automaton with coefficients `a_s` maps `x` to
+`τ(x)(g) = Σ_s a_s x(s g)` (`LinearCA(G, coefficients; p)`, over `GF(p)`). The package composes
+linear automata and takes their powers through their coefficients, as elements of the group
+algebra, instead of composing local rules: `compose(L, M)` (first `L`, then `M`) has the
+coefficients of the product `L * M`. This file proves that this is right, over any commutative
+semiring and any group: running `a` and then `b` is the linear automaton of `a * b`, the unit
+of the algebra is the identity, and a linear automaton is a cellular automaton whose memory
+set is the support of its coefficients.
+
+```lean
+namespace CategoricalCellularAutomataProofs
+
+universe u
+
+variable {G : Type u} [Monoid G] {R : Type u} [CommSemiring R]
+
+/-- The linear cellular automaton with coefficients `a`: `τ(x)(g) = Σ_s a_s x(s g)`. -/
+noncomputable def linCA (a : G →₀ R) (x : Config G R) : Config G R :=
+  fun g => a.sum fun s r => r * x (s * g)
+
+theorem linCA_apply (a : G →₀ R) (x : Config G R) (g : G) :
+    linCA a x g = a.sum fun s r => r * x (s * g) := rfl
+
+/-- The convolution of coefficients, `(a ⋆ b)_u = Σ_{s t = u} a_s b_t`: the product of the
+group algebra (`MonoidAlgebra.mul_def`). -/
+noncomputable def conv (a b : G →₀ R) : G →₀ R :=
+  a.sum fun s r => b.sum fun t r' => Finsupp.single (s * t) (r * r')
+
+/-- Running `a` and then `b` is the linear automaton of their convolution. -/
+theorem linCA_conv (a b : G →₀ R) (x : Config G R) :
+    linCA b (linCA a x) = linCA (conv a b) x := by
+  funext g
+  simp only [linCA_apply, conv]
+  rw [Finsupp.sum_sum_index (fun _ => zero_mul _) (fun _ _ _ => add_mul _ _ _)]
+  have h1 : ∀ s r, ((b.sum fun t r' => Finsupp.single (s * t) (r * r')).sum
+      fun u r => r * x (u * g)) = b.sum fun t r' => r * r' * x (s * t * g) := by
+    intro s r
+    rw [Finsupp.sum_sum_index (fun _ => zero_mul _) (fun _ _ _ => add_mul _ _ _)]
+    exact Finsupp.sum_congr fun t _ => Finsupp.sum_single_index (zero_mul _)
+  simp only [h1, Finsupp.mul_sum]
+  rw [Finsupp.sum_comm]
+  refine Finsupp.sum_congr fun s _ => Finsupp.sum_congr fun t _ => ?_
+  rw [mul_assoc s t g]; ring
+
+/-- The product of the group algebra is the convolution of coefficients. -/
+theorem monoidAlgebra_mul_eq_conv (a b : MonoidAlgebra R G) :
+    (a * b : MonoidAlgebra R G) = (conv a b : G →₀ R) := by
+  rw [MonoidAlgebra.mul_def]; rfl
+
+/-- **Composition through the coefficients.** Running `a` and then `b` is the linear automaton
+of the product `a * b` in the group algebra (`compose(L, M)`). -/
+theorem linCA_mul (a b : MonoidAlgebra R G) (x : Config G R) :
+    linCA b (linCA a x) = linCA (a * b : MonoidAlgebra R G) x := by
+  rw [linCA_conv, monoidAlgebra_mul_eq_conv]
+
+/-- The unit of the group algebra is the identity automaton. -/
+theorem linCA_one (x : Config G R) : linCA (1 : MonoidAlgebra R G) x = x := by
+  funext g
+  rw [MonoidAlgebra.one_def, linCA_apply, MonoidAlgebra.single, Finsupp.sum_single_index] <;>
+    simp
+
+/-- Powers through the coefficients: running `a` `n` times is the linear automaton of `a ^ n`
+(`L^n`, computed by repeated squaring of the coefficients). -/
+theorem linCA_pow (a : MonoidAlgebra R G) (n : ℕ) (x : Config G R) :
+    (linCA a)^[n] x = linCA (a ^ n : MonoidAlgebra R G) x := by
+  induction n generalizing x with
+  | zero => simp [linCA_one]
+  | succ n ih =>
+    rw [Function.iterate_succ_apply', ih, linCA_mul, ← pow_succ]
+
+/-- A linear automaton is a cellular automaton (`CellularAutomaton(L)`): its memory set is the
+support of its coefficients and its local rule the weighted sum. -/
+theorem isCA_linCA (a : G →₀ R) : IsCA G (linCA a) := by
+  classical
+  refine ⟨a.support, inferInstance, fun s => s.1,
+    fun p => ∑ s : a.support, a s.1 * p s, ?_⟩
+  funext x g
+  simp only [linCA_apply, ca_apply, Finsupp.sum]
+  exact (Finset.sum_coe_sort a.support (fun s => a s * x (s * g))).symm
 
 end CategoricalCellularAutomataProofs
 ```
@@ -407,6 +735,98 @@ theorem step_eq_of_cover {ι' : Type*} {P Q : ι' → Type*} {nbrs : X → List 
   rw [hy, step_restrict]
 
 end Step
+
+end CategoricalCellularAutomataProofs
+```
+
+
+<!-- CategoricalCellularAutomataProofs/Spaces.lean -->
+
+# Moving models between spaces
+
+```lean
+import CategoricalCellularAutomataProofs.Gluing
+```
+
+A space is a set of cells `X`, each reading its neighbours `nbrs c` in slot order (a list, so
+graphs, whose cells have different numbers of neighbours, are included). A map of spaces
+`φ : Y → X` preserves neighbours up to a reordering of each cell's slots: `ρ y` puts the
+images of `y`'s neighbours in the slot order of `φ y`. A reordering moves list entries by
+position, so it commutes with relabelling them (`ρ_natural`): a natural transformation of the
+list functor, such as the identity (a covering) or reversal (a one-dimensional fold).
+
+The package's `pullback(f, prob; space)` moves a problem along such a map: each cell `y` of
+the new space runs the rule of its image `φ y`, reading its neighbours reordered by `ρ y`, and
+draws the random numbers of `φ y`. A rule that depends on the cell and the time (as a rule
+drawing counter-based random numbers keyed by cell and step does) is a family
+`μ t c : List A → A`. The pulled-back run is the pullback of the run, step by step, for every
+such rule: no symmetry of the rule is needed.
+
+```lean
+namespace CategoricalCellularAutomataProofs
+
+universe u
+
+variable {X Y A : Type u}
+
+/-- The run of a time-dependent rule: `run nbrs μ x n` is the configuration after `n`
+synchronous steps from `x`, step `t` applying the rule `μ t`. -/
+def run (nbrs : X → List X) (μ : ℕ → X → List A → A) (x : X → A) : ℕ → X → A
+  | 0 => x
+  | n + 1 => step nbrs (μ n) (run nbrs μ x n)
+
+/-- A map of spaces `φ : Y → X` with slot reorderings `ρ`. -/
+structure SpaceMap (Y X : Type u) (nbrsY : Y → List Y) (nbrsX : X → List X) where
+  /-- where each cell goes -/
+  φ : Y → X
+  /-- the reordering of each cell's slots, at every type of values -/
+  ρ : Y → ∀ {B : Type u}, List B → List B
+  /-- a reordering moves entries by position, so it commutes with relabelling them -/
+  ρ_natural : ∀ (y : Y) {B C : Type u} (g : B → C) (l : List B), ρ y (l.map g) = (ρ y l).map g
+  /-- neighbours are preserved: the images of `y`'s neighbours, reordered, are `φ y`'s -/
+  map_nbrs : ∀ y, ρ y ((nbrsY y).map φ) = nbrsX (φ y)
+
+variable {nbrsY : Y → List Y} {nbrsX : X → List X}
+
+/-- The rule pulled back along a map of spaces: the cell `y` runs the rule of `φ y` on its
+neighbours' values in `φ y`'s slot order. -/
+def SpaceMap.pullRule (f : SpaceMap Y X nbrsY nbrsX) (μ : X → List A → A) : Y → List A → A :=
+  fun y l => μ (f.φ y) (f.ρ y l)
+
+/-- One step of the pulled-back rule from a pulled-back configuration is the pullback of one
+step. -/
+theorem SpaceMap.step_pullback (f : SpaceMap Y X nbrsY nbrsX) (μ : X → List A → A)
+    (x : X → A) : step nbrsY (f.pullRule μ) (x ∘ f.φ) = step nbrsX μ x ∘ f.φ := by
+  funext y
+  simp only [step, SpaceMap.pullRule, Function.comp_apply]
+  rw [← List.map_map, f.ρ_natural, f.map_nbrs]
+
+/-- **Moving a model along a map of spaces.** The run of the pulled-back time-dependent rule
+from the pulled-back initial state is, at every step, the pullback of the run. -/
+theorem SpaceMap.run_pullback (f : SpaceMap Y X nbrsY nbrsX) (μ : ℕ → X → List A → A)
+    (x : X → A) (n : ℕ) :
+    run nbrsY (fun t => f.pullRule (μ t)) (x ∘ f.φ) n = run nbrsX μ x n ∘ f.φ := by
+  induction n with
+  | zero => rfl
+  | succ n ih => simp only [run, ih, SpaceMap.step_pullback]
+
+/-- A covering: a map that preserves neighbours slot by slot (no reordering). -/
+def SpaceMap.ofSlotwise (φ : Y → X) (h : ∀ y, (nbrsY y).map φ = nbrsX (φ y)) :
+    SpaceMap Y X nbrsY nbrsX where
+  φ := φ
+  ρ _ _ l := l
+  ρ_natural _ _ _ _ _ := rfl
+  map_nbrs := h
+
+/-- A fold that reverses the slots of some cells (on a line with neighbours `[left, right]`,
+the mirrored half reads them the other way round), as `reflection_fold` builds. -/
+def SpaceMap.ofReversing (φ : Y → X) (flip : Y → Bool)
+    (h : ∀ y, (if flip y then List.reverse else id) ((nbrsY y).map φ) = nbrsX (φ y)) :
+    SpaceMap Y X nbrsY nbrsX where
+  φ := φ
+  ρ y _ l := if flip y then l.reverse else l
+  ρ_natural y _ _ g l := by cases flip y <;> simp [List.map_reverse]
+  map_nbrs y := by simpa [apply_ite (fun F : List X → List X => F ((nbrsY y).map φ))] using h y
 
 end CategoricalCellularAutomataProofs
 ```

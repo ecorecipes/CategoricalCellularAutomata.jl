@@ -239,12 +239,105 @@ function is_morphism(f::SpaceMorphism)
 end
 
 """
-    pullback(f::SpaceMorphism, x) -> Vector
+    pullback(f::SpaceMorphism, x; space=nothing)
 
 The configuration on the domain of `f` that reads, at each cell, the value of
-`x` at its image: `x ∘ φ`. (A method of Catlab's `pullback`.)
+`x` at its image: `x ∘ φ`. (A method of Catlab's `pullback`.) `x` is a vector
+over the free cells of the codomain, or a CellularAutomataCore state of the
+space the codomain was built from (an array, or a `NamedTuple` of arrays, one
+per layer, pulled back layer by layer). The result is a vector, or, given the
+CellularAutomataCore `space` the domain was built from, a state of that space.
 """
-pullback(f::SpaceMorphism, x::AbstractVector) = x[f.map]
+function pullback(f::SpaceMorphism, x::AbstractArray; space=nothing)
+    length(x) == free_cells(f.codom) ||
+        throw(ArgumentError("the configuration has $(length(x)) cells, the codomain $(free_cells(f.codom))"))
+    y = vec(x)[f.map]
+    space === nothing && return y
+    prod(size(space)) == length(f.map) ||
+        throw(ArgumentError("$space has $(prod(size(space))) cells, the domain $(length(f.map))"))
+    return reshape(y, size(space))
+end
+function pullback(f::SpaceMorphism, u::NamedTuple; space=nothing)
+    return map(x -> pullback(f, x; space), u)
+end
+
+# A rule pulled back along a map of spaces: the cell `y` of the domain runs the rule of its image
+# `φ(y)`, reading its neighbours in the image's slot order and drawing the image's random numbers.
+struct _PulledBackRule{R<:CAC.AbstractRule} <: CAC.AbstractRule
+    rule::R
+    map::Vector{Int}                          # the image of each cell
+    order::Union{Nothing,Vector{Vector{Int}}} # inverse slot permutations; nothing if all trivial
+end
+
+_reorder(nbrs::Tuple, o) = ntuple(k -> @inbounds(nbrs[o[k]]), length(nbrs))
+_reorder(nbrs::AbstractVector, o) = nbrs[o]
+
+@inline function CAC.local_rule(r::_PulledBackRule, cell, nbrs, ctx)
+    y = ctx.cellid
+    nb = r.order === nothing ? nbrs : _reorder(nbrs, r.order[y])
+    c = CAC.CellContext(ctx.p, ctx.index, ctx.t, r.map[y], ctx.seed, ctx.covariates,
+                        ctx.fields)
+    return CAC.local_rule(r.rule, cell, nb, c)
+end
+CAC.neighbourhood(r::_PulledBackRule) = CAC.neighbourhood(r.rule)
+CAC.validate_state(r::_PulledBackRule, u0) = CAC.validate_state(r.rule, u0)
+CAC.fields(r::_PulledBackRule) = CAC.fields(r.rule)
+Base.show(io::IO, r::_PulledBackRule) = print(io, "pullback of ", r.rule)
+
+# A covariate array of the codomain's space (or with one more, time, axis) pulled back.
+function _pull_covariate(f::SpaceMorphism, a::AbstractArray, from, to)
+    timed = ndims(a) == length(size(from)) + 1
+    A = reshape(a, prod(size(from)), timed ? size(a, ndims(a)) : 1)
+    B = A[f.map, :]
+    return timed ? reshape(B, size(to)..., size(B, 2)) : reshape(B, size(to))
+end
+
+"""
+    pullback(f::SpaceMorphism, prob::CAProblem; space) -> CAProblem
+
+The problem `prob` moved along `f` to the CellularAutomataCore `space` that the
+domain of `f` was built from: its initial state, covariates and mask pulled
+back, and each cell of `space` running the rule of its image under `f`, reading
+its neighbours in the image's slot order and drawing the image's random
+numbers. Its solution is the pullback of the solution of `prob`, step by step,
+for every rule, deterministic or stochastic, with any slot permutations (not
+only rules symmetric under them), when both are solved with the synchronous
+scheme on the same backend: the model on `codom(f)` becomes a model on
+`dom(f)`. (A method of Catlab's `pullback`.)
+
+`f` must preserve neighbours ([`is_morphism`](@ref)), and the codomain and
+domain of `f` must be the neighbourhood spaces of `prob`'s space and of `space`
+with the rule's neighbourhood ([`neighbourhood_space`](@ref)), or
+[`DomainMismatchError`](@ref) is raised. Parameters, seed, time span, kernel
+fields (recomputed on `space`) and solver keywords are kept. Kernel fields
+agree with the codomain's when the map preserves them too (a covering, or a
+fold with a kernel symmetric under reflection); a rule that reads `ctx.index`
+sees the cell of `space`. Event rules and block rules cannot be pulled back.
+"""
+function pullback(f::SpaceMorphism, prob::CAC.CAProblem; space::CAC.AbstractSpace)
+    rule = prob.rule
+    rule isa Union{CAC.EventRule,CAC.BlockRule} &&
+        throw(ArgumentError("cannot pull back $rule: only rules stepped cell by cell in discrete time"))
+    is_morphism(f) ||
+        throw(ArgumentError("the map does not preserve neighbours, so it cannot move a problem"))
+    nbhd = CAC.neighbourhood(rule)
+    codom = neighbourhood_space(prob.space, nbhd)
+    codom == f.codom ||
+        throw(DomainMismatchError("pulling a problem back along a map of spaces (the problem's space)",
+                                  f.codom, codom))
+    dom = neighbourhood_space(space, nbhd)
+    dom == f.dom ||
+        throw(DomainMismatchError("pulling a problem back along a map of spaces (the new space)",
+                                  f.dom, dom))
+    trivial = all(σ -> σ == eachindex(σ), f.slots)
+    pulled = _PulledBackRule(rule, f.map, trivial ? nothing : map(invperm, f.slots))
+    covariates = map(a -> _pull_covariate(f, a, prob.space, space), prob.covariates)
+    mask = prob.mask === nothing ? nothing : pullback(f, prob.mask; space)
+    user_fields = Base.structdiff(prob.field_specs, CAC.fields(rule))
+    return CAC.CAProblem(pulled, pullback(f, prob.u0; space), prob.tspan, prob.p; space,
+                         seed=prob.seed, covariates, fields=user_fields, mask,
+                         prob.kwargs...)
+end
 
 """
     covering(big, small, neighbourhood=nothing) -> SpaceMorphism

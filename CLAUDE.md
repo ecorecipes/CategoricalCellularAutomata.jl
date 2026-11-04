@@ -41,6 +41,9 @@ the `references.bib` files here are synced copies.
 - A `NeighbourhoodSpace` built from a core space steps exactly as the core does (neighbours in the core's
   order; `Constant` edges as pinned cells); maps of spaces are tested by commuting with local rules (every
   rule for coverings, reflection-symmetric rules for `reflection_fold`, and an anisotropic rule must fail).
+  `pullback(f, prob; space)` moves a whole problem: each cell runs its image's rule with its image's slot
+  order and cell id (so its random numbers), and tests check every saved state equals the pulled-back
+  original run, for stochastic and anisotropic rules, layered states, covariates, masks and graphs.
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with
   discrete feet. `glue` computes colimits by union-find (feet are cells, so slots are never identified);
   `algorithm=:catlab` uses Catlab's `oapply` and the tests check the two agree. Glued landscapes are tested
@@ -59,7 +62,7 @@ the `references.bib` files here are synced copies.
 
 - `src/CategoricalCellularAutomata.jl`: module docstring, exports, includes.
 - `proofs/`: the Lean library (`CategoricalCellularAutomataProofs/{Basic,Configurations,CellularAutomata,
-  Generalized,Gluing}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
+  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
   generated document; `.github/workflows/lean.yml` builds and audits it.
 - `src/errors.jl`: the root `CategoricalCellularAutomataError` and every exception under it.
 - `src/groups.jl`: `CyclicGroup`, `TorusGroup`, `FiniteGroup`. `src/configurations.jl`: `FinAlphabet`,

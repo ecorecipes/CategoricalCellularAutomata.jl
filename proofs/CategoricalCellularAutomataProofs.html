@@ -5,7 +5,7 @@
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="author" content="Simon Frost" />
-  <meta name="dcterms.date" content="2026-11-03" />
+  <meta name="dcterms.date" content="2026-11-04" />
   <title>Formal Verification of CategoricalCellularAutomata.jl</title>
   <style>
     /* Default styles provided by pandoc.
@@ -97,7 +97,7 @@
 <h1 class="title">Formal Verification of
 CategoricalCellularAutomata.jl</h1>
 <p class="author">Simon Frost</p>
-<p class="date">2026-11-03</p>
+<p class="date">2026-11-04</p>
 </header>
 <nav id="TOC" role="doc-toc">
 <ul>
@@ -110,10 +110,21 @@ pullbacks</a></li>
 <li><a href="#cellular-automata-over-a-group"
 id="toc-cellular-automata-over-a-group">Cellular automata over a
 group</a></li>
+<li><a href="#the-cartesian-category-of-cellular-automata-over-a-group"
+id="toc-the-cartesian-category-of-cellular-automata-over-a-group">The
+cartesian category of cellular automata over a group</a></li>
+<li><a href="#curtishedlundlyndon"
+id="toc-curtishedlundlyndon">Curtis–Hedlund–Lyndon</a></li>
+<li><a href="#linear-cellular-automata-and-the-group-algebra"
+id="toc-linear-cellular-automata-and-the-group-algebra">Linear cellular
+automata and the group algebra</a></li>
 <li><a href="#generalised-cellular-automata-and-pullbacks"
 id="toc-generalised-cellular-automata-and-pullbacks">Generalised
 cellular automata and pullbacks</a></li>
 <li><a href="#gluing-spaces" id="toc-gluing-spaces">Gluing
+spaces</a></li>
+<li><a href="#moving-models-between-spaces"
+id="toc-moving-models-between-spaces">Moving models between
 spaces</a></li>
 </ul>
 </nav>
@@ -183,6 +194,43 @@ its computations are instances.</p>
 <td>pairing over the disjoint union of memory sets</td>
 </tr>
 <tr>
+<td><code>CAObj G</code>, <code>IsCA</code></td>
+<td><code>FullShift</code>, <code>CellularAutomaton</code></td>
+<td>alphabets, and the maps of configurations that are cellular
+automata</td>
+</tr>
+<tr>
+<td><code>CartesianMonoidalCategory (CAObj G)</code></td>
+<td>the Catlab <code>@instance</code> of
+<code>ThCartesianCategory</code></td>
+<td>CA(G) is a cartesian monoidal category: <code>compose</code>,
+<code>id</code>, <code>otimes</code>, <code>munit</code>,
+<code>proj1</code>, <code>proj2</code>, <code>pair</code></td>
+</tr>
+<tr>
+<td><code>isCA_iff_shift_comm_and_local</code></td>
+<td><code>is_equivariant</code>, <code>cellular_automaton</code></td>
+<td>Curtis–Hedlund–Lyndon: a cellular automaton is an equivariant map
+that is local at the identity</td>
+</tr>
+<tr>
+<td><code>isCA_iff_shift_comm</code></td>
+<td><code>cellular_automaton</code>,
+<code>minimal_neighbourhood</code></td>
+<td>over a finite group, every equivariant map is a cellular
+automaton</td>
+</tr>
+<tr>
+<td><code>linCA a</code></td>
+<td><code>LinearCA(G, coefficients; p)</code></td>
+<td><code>τ(x)(g) = Σ_s a_s x(s g)</code></td>
+</tr>
+<tr>
+<td><code>linCA_mul</code>, <code>linCA_pow</code></td>
+<td><code>compose</code>, <code>^</code> for <code>LinearCA</code></td>
+<td>composition and powers are products in the group algebra</td>
+</tr>
+<tr>
 <td><code>gca φ S μ</code></td>
 <td><code>GeneralizedCA(φ, S, μ)</code></td>
 <td><code>T(x)(h) = μ((x(s φ(h)))_{s ∈ S})</code></td>
@@ -214,6 +262,13 @@ patches (a limit)</td>
 <td><code>step_restrict</code>, <code>step_eq_of_cover</code></td>
 <td><code>glue</code>, <code>apply_local</code></td>
 <td>the landscape’s step on a patch’s interior is the patch’s step</td>
+</tr>
+<tr>
+<td><code>SpaceMap</code>, <code>SpaceMap.run_pullback</code></td>
+<td><code>SpaceMorphism</code>,
+<code>pullback(f, prob; space)</code></td>
+<td>a problem moved along a map of spaces (slots reordered, the image’s
+rule and random numbers) runs the pullback of the original run</td>
 </tr>
 </tbody>
 </table>
@@ -383,11 +438,321 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb4-1"><a href="
 <span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Monoid</span>
 <span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/Category.lean -->
+<h1 id="the-cartesian-category-of-cellular-automata-over-a-group">The
+cartesian category of cellular automata over a group</h1>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.CellularAutomata</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.CategoryTheory.Monoidal.Cartesian.Basic</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.Finite.Prod</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.Finite.Sum</span></code></pre></div>
+<p>The package makes the cellular automata over a group <code>G</code> a
+Catlab instance of <code>ThCartesianCategory</code>: the objects are
+full shifts <code>A^G</code> (one for each alphabet <code>A</code>), the
+morphisms are cellular automata, composition is <code>compose</code>,
+the product of <code>A^G</code> and <code>B^G</code> is
+<code>(A × B)^G</code> (<code>otimes</code>), with <code>proj1</code>,
+<code>proj2</code> and <code>pair</code>, and the unit
+<code>munit()</code> is the one-letter alphabet.</p>
+<p>Here the category is built in Mathlib: an object is an alphabet, a
+morphism is a map of configurations that <em>is</em> a cellular
+automaton (has a finite memory set and a local rule), and Mathlib’s
+<code>CartesianMonoidalCategory.ofChosenFiniteProducts</code> turns the
+terminal object and the binary products into the cartesian monoidal
+structure, with all its coherence laws (the associator, unitors and
+braiding are then the ones the package’s strict products realise).</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">open</span> CategoryTheory Limits</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> (G : <span class="kw">Type</span> u) [Monoid G]</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of configurations is a cellular automaton when it has a finite memory set `S` and</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="do">a local rule `μ`. -/</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> IsCA {A B : <span class="kw">Type</span> u} (f : Config G A → Config G B) : <span class="kw">Prop</span> :=</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  ∃ (I : <span class="kw">Type</span> u) (_ : Finite I) (S : I → G) (μ : (I → A) → B), f = ca S μ</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {G}</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> isCA_ca {A B : <span class="kw">Type</span> u} {I : <span class="kw">Type</span> u} [Finite I] (S : I → G) (μ : (I → A) → B) :</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    IsCA G (ca S μ) :=</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  ⟨I, inferInstance, S, μ, rfl⟩</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> isCA_id (A : <span class="kw">Type</span> u) : IsCA G (id : Config G A → Config G A) :=</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>  ⟨PUnit, inferInstance, <span class="kw">fun</span> _ =&gt; <span class="dv">1</span>, <span class="kw">fun</span> p =&gt; p PUnit.unit, <span class="kw">by</span> <span class="cf">funext</span> x g; <span class="cf">simp</span> [ca]⟩</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> isCA_comp {A B C : <span class="kw">Type</span> u} {f : Config G A → Config G B} {g : Config G B → Config G C}</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    (hf : IsCA G f) (hg : IsCA G g) : IsCA G (g ∘ f) := <span class="kw">by</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨J, _, T, ν, rfl⟩ := hf</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨I, _, S, μ, rfl⟩ := hg</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> ⟨I × J, inferInstance, <span class="kw">fun</span> p =&gt; T p<span class="fl">.2</span> * S p<span class="fl">.1</span>,</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fun</span> q =&gt; μ (<span class="kw">fun</span> i =&gt; ν (<span class="kw">fun</span> j =&gt; q (i, j))), ?_⟩</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> x</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> ca_comp S μ T ν x</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A cellular automaton is equivariant: it commutes with every shift. -/</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> IsCA.shift_comm {A B : <span class="kw">Type</span> u} {f : Config G A → Config G B} (hf : IsCA G f) (g : G)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>    (x : Config G A) : f (shift g x) = shift g (f x) := <span class="kw">by</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨I, _, S, μ, rfl⟩ := hf</span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> ca_shift S μ g x</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a><span class="do">/-- An alphabet, as an object of the category of cellular automata over `G` (the full shift</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a><span class="do">`A^G`). The group is a parameter of the type, so each group has its own category. -/</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a><span class="at">@[nolint unusedArguments]</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> CAObj (G : <span class="kw">Type</span> u) [Monoid G] <span class="kw">where</span></span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the alphabet -/</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>  α : <span class="kw">Type</span> u</span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The category of cellular automata over `G`: morphisms are the maps of configurations that</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a><span class="do">are cellular automata, composed as maps. -/</span></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> : Category (CAObj G) <span class="kw">where</span></span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>  Hom X Y := { f : Config G X.α → Config G Y.α // IsCA G f }</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>  id X := ⟨id, isCA_id X.α⟩</span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>  comp f g := ⟨g<span class="fl">.1</span> ∘ f<span class="fl">.1</span>, isCA_comp f<span class="fl">.2</span> g<span class="fl">.2</span>⟩</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="at">@[ext]</span> <span class="kw">theorem</span> CAObj.hom_ext {X Y : CAObj G} {f g : X ⟶ Y} (h : f<span class="fl">.1</span> = g<span class="fl">.1</span>) : f = g :=</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>  Subtype.ext h</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a><span class="at">@[simp]</span> <span class="kw">theorem</span> CAObj.id_val (X : CAObj G) : (𝟙 X : X ⟶ X).<span class="dv">1</span> = id := <span class="cf">rfl</span></span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a><span class="at">@[simp]</span> <span class="kw">theorem</span> CAObj.comp_val {X Y Z : CAObj G} (f : X ⟶ Y) (g : Y ⟶ Z) :</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>    (f ≫ g).<span class="dv">1</span> = g<span class="fl">.1</span> ∘ f<span class="fl">.1</span> := <span class="cf">rfl</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The one-letter alphabet, the unit `munit()`. -/</span></span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> unitObj : CAObj G := ⟨PUnit⟩</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The product alphabet `A × B` (`otimes`). -/</span></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> prodObj (X Y : CAObj G) : CAObj G := ⟨X.α × Y.α⟩</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The first projection `proj1`: memory set `{1}`, rule `fst`. -/</span></span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> fstHom (X Y : CAObj G) : prodObj X Y ⟶ X :=</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>  ⟨ca (<span class="kw">fun</span> _ : PUnit =&gt; <span class="dv">1</span>) (<span class="kw">fun</span> p =&gt; (p PUnit.unit).<span class="dv">1</span>), isCA_ca _ _⟩</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The second projection `proj2`: memory set `{1}`, rule `snd`. -/</span></span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> sndHom (X Y : CAObj G) : prodObj X Y ⟶ Y :=</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>  ⟨ca (<span class="kw">fun</span> _ : PUnit =&gt; <span class="dv">1</span>) (<span class="kw">fun</span> p =&gt; (p PUnit.unit).<span class="dv">2</span>), isCA_ca _ _⟩</span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a><span class="at">@[simp]</span> <span class="kw">theorem</span> fstHom_apply (X Y : CAObj G) (x : Config G (X.α × Y.α)) (g : G) :</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>    (fstHom X Y).<span class="dv">1</span> x g = (x g).<span class="dv">1</span> := <span class="kw">by</span></span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> [fstHom, ca]</span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a><span class="at">@[simp]</span> <span class="kw">theorem</span> sndHom_apply (X Y : CAObj G) (x : Config G (X.α × Y.α)) (g : G) :</span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>    (sndHom X Y).<span class="dv">1</span> x g = (x g).<span class="dv">2</span> := <span class="kw">by</span></span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> [sndHom, ca]</span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The pairing `pair(f, g)` of two cellular automata is a cellular automaton (over the</span></span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a><span class="do">disjoint union of their memory sets). -/</span></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pairHom {W X Y : CAObj G} (f : W ⟶ X) (g : W ⟶ Y) : W ⟶ prodObj X Y :=</span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>  ⟨fun x h =&gt; (f<span class="fl">.1</span> x h, g<span class="fl">.1</span> x h), <span class="kw">by</span></span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>    <span class="cf">obtain</span> ⟨I, _, S, μ, hS⟩ := f<span class="fl">.2</span></span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>    <span class="cf">obtain</span> ⟨J, _, T, ν, hT⟩ := g<span class="fl">.2</span></span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a>    <span class="cf">refine</span> ⟨I ⊕ J, inferInstance, Sum.elim S T,</span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a>      <span class="kw">fun</span> p =&gt; (μ (<span class="kw">fun</span> i =&gt; p (Sum.inl i)), ν (<span class="kw">fun</span> j =&gt; p (Sum.inr j))), ?_⟩</span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> x h</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [hS, hT]</span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> (ca_pair S μ T ν x h).symm⟩</span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The product cone: `(A × B)^G` with its projections is a product of `A^G` and `B^G`. -/</span></span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> prodIsLimit (X Y : CAObj G) : IsLimit (BinaryFan.mk (fstHom X Y) (sndHom X Y)) :=</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>  BinaryFan.IsLimit.mk _ (<span class="kw">fun</span> f g =&gt; pairHom f g)</span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">fun</span> f g =&gt; <span class="kw">by</span> <span class="cf">ext</span> x h; <span class="cf">simp</span> [pairHom])</span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">fun</span> f g =&gt; <span class="kw">by</span> <span class="cf">ext</span> x h; <span class="cf">simp</span> [pairHom])</span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">fun</span> f g m h₁ h₂ =&gt; <span class="kw">by</span></span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a>      <span class="cf">ext</span> x h</span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a>      <span class="kw">have</span> e₁ := congrFun (congrFun (congrArg Subtype.val h₁) x) h</span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a>      <span class="kw">have</span> e₂ := congrFun (congrFun (congrArg Subtype.val h₂) x) h</span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a>      <span class="cf">simp</span> only [CAObj.comp_val, Function.comp_apply, BinaryFan.mk_fst, BinaryFan.mk_snd,</span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a>        fstHom_apply, sndHom_apply] <span class="kw">at</span> e₁ e₂</span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a>      <span class="kw">show</span> m<span class="fl">.1</span> x h = (f<span class="fl">.1</span> x h, g<span class="fl">.1</span> x h)</span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a>      <span class="cf">exact</span> Prod.ext e₁ e₂)</span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The one-letter alphabet is terminal: the only map into it is a cellular automaton with an</span></span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a><span class="do">empty memory set. -/</span></span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> unitIsTerminal : IsTerminal (unitObj : CAObj G) :=</span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>  IsTerminal.ofUniqueHom</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">fun</span> X =&gt; ⟨fun _ _ =&gt; PUnit.unit, ⟨PEmpty, inferInstance, PEmpty.elim,</span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>      <span class="kw">fun</span> _ =&gt; PUnit.unit, rfl⟩⟩)</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">fun</span> X m =&gt; <span class="kw">by</span> <span class="cf">ext</span> x h; <span class="cf">rfl</span>)</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The cartesian category CA(G).** The cellular automata over `G` form a cartesian monoidal</span></span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a><span class="do">category, with the product of alphabets as the monoidal product and the one-letter alphabet as</span></span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a><span class="do">its unit: the structure the package&#39;s Catlab instance of `ThCartesianCategory` asserts. -/</span></span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> : CartesianMonoidalCategory (CAObj G) :=</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>  .ofChosenFiniteProducts ⟨_, unitIsTerminal⟩ (<span class="kw">fun</span> X Y =&gt; ⟨_, prodIsLimit X Y⟩)</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/CurtisHedlundLyndon.lean -->
+<h1 id="curtishedlundlyndon">Curtis–Hedlund–Lyndon</h1>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Category</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.Finset.Basic</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.Fintype.Basic</span></code></pre></div>
+<p>The package decides whether a map of configurations is a cellular
+automaton (<code>is_equivariant</code>, <code>cellular_automaton</code>,
+<code>minimal_neighbourhood</code>) by checking that it commutes with
+the shifts and that its value at the identity depends on finitely many
+cells. This file proves that test correct, in the uniform form that
+needs no topology: over any group, a map of configurations (into a
+nonempty alphabet) is a cellular automaton exactly when it commutes with
+the shifts and its value at the identity depends only on the cells of
+some finite set. Over a finite group the second condition always holds,
+so a map is a cellular automaton exactly when it commutes with the
+shifts, with the whole group as a memory set.</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {G : <span class="kw">Type</span> u} [Monoid G] {A B : <span class="kw">Type</span> u}</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map whose value at the identity depends only on the cells of `S`. -/</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> LocalAt (S : Finset G) (f : Config G A → Config G B) : <span class="kw">Prop</span> :=</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  ∀ x y : Config G A, (∀ s ∈ S, x s = y s) → f x <span class="dv">1</span> = f y <span class="dv">1</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A cellular automaton&#39;s value at the identity depends only on its memory set. -/</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> IsCA.exists_localAt [DecidableEq G] {f : Config G A → Config G B} (hf : IsCA G f) :</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    ∃ S : Finset G, LocalAt S f := <span class="kw">by</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨I, _, S, μ, rfl⟩ := hf</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> := Fintype.ofFinite I</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> ⟨Finset.univ.image S, <span class="kw">fun</span> x y h =&gt; ?_⟩</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [ca_apply, mul_one]</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">congr</span> <span class="dv">1</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> i</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> h (S i) (Finset.mem_image_of_mem S (Finset.mem_univ i))</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Curtis–Hedlund–Lyndon (uniform form).** Over any group, a map of configurations into</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="do">a nonempty alphabet is a cellular automaton exactly when it commutes with the shifts and its</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="do">value at the identity depends only on a finite set of cells; that set is then a memory set. -/</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> isCA_iff_shift_comm_and_local [DecidableEq G] [Nonempty A]</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    (f : Config G A → Config G B) :</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    IsCA G f ↔ (∀ g x, f (shift g x) = shift g (f x)) ∧ ∃ S : Finset G, LocalAt S f := <span class="kw">by</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> hf</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> ⟨hf.shift_comm, hf.exists_localAt⟩</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">rintro</span> ⟨hshift, S, hS⟩</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>    classical</span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="cf">ext</span> : (S → A) → Config G A := <span class="kw">fun</span> p g =&gt;</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> h : g ∈ S <span class="kw">then</span> p ⟨g, h⟩ <span class="kw">else</span> Classical.arbitrary A</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">refine</span> ⟨S, inferInstance, <span class="kw">fun</span> s =&gt; s<span class="fl">.1</span>, <span class="kw">fun</span> p =&gt; f (<span class="cf">ext</span> p) <span class="dv">1</span>, ?_⟩</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> x g</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [apply_eq_apply_one_shift f hshift x g, ca_apply]</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">refine</span> hS _ _ (<span class="kw">fun</span> s hs =&gt; ?_)</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> [<span class="cf">ext</span>, hs, shift]</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Curtis–Hedlund–Lyndon on a finite group.** A map of configurations over a finite group</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="do">is a cellular automaton exactly when it commutes with the shifts; the whole group serves as</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="do">its memory set (`cellular_automaton` recovers the rule, `minimal_neighbourhood` shrinks the</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a><span class="do">set). -/</span></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> isCA_iff_shift_comm [Finite G] (f : Config G A → Config G B) :</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>    IsCA G f ↔ ∀ g x, f (shift g x) = shift g (f x) := <span class="kw">by</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">exact</span> <span class="kw">fun</span> hf =&gt; hf.shift_comm</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> hshift</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">refine</span> ⟨G, inferInstance, id, <span class="kw">fun</span> p =&gt; f p <span class="dv">1</span>, ?_⟩</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> x g</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [apply_eq_apply_one_shift f hshift x g]</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rfl</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/Linear.lean -->
+<h1 id="linear-cellular-automata-and-the-group-algebra">Linear cellular
+automata and the group algebra</h1>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Category</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Algebra.MonoidAlgebra.Defs</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Tactic.Ring</span></code></pre></div>
+<p>A linear cellular automaton with coefficients <code>a_s</code> maps
+<code>x</code> to <code>τ(x)(g) = Σ_s a_s x(s g)</code>
+(<code>LinearCA(G, coefficients; p)</code>, over <code>GF(p)</code>).
+The package composes linear automata and takes their powers through
+their coefficients, as elements of the group algebra, instead of
+composing local rules: <code>compose(L, M)</code> (first <code>L</code>,
+then <code>M</code>) has the coefficients of the product
+<code>L * M</code>. This file proves that this is right, over any
+commutative semiring and any group: running <code>a</code> and then
+<code>b</code> is the linear automaton of <code>a * b</code>, the unit
+of the algebra is the identity, and a linear automaton is a cellular
+automaton whose memory set is the support of its coefficients.</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {G : <span class="kw">Type</span> u} [Monoid G] {R : <span class="kw">Type</span> u} [CommSemiring R]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The linear cellular automaton with coefficients `a`: `τ(x)(g) = Σ_s a_s x(s g)`. -/</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">noncomputable</span> <span class="kw">def</span> linCA (a : G →₀ R) (x : Config G R) : Config G R :=</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> g =&gt; a.sum <span class="kw">fun</span> s r =&gt; r * x (s * g)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> linCA_apply (a : G →₀ R) (x : Config G R) (g : G) :</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    linCA a x g = a.sum <span class="kw">fun</span> s r =&gt; r * x (s * g) := <span class="cf">rfl</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The convolution of coefficients, `(a ⋆ b)_u = Σ_{s t = u} a_s b_t`: the product of the</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="do">group algebra (`MonoidAlgebra.mul_def`). -/</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="kw">noncomputable</span> <span class="kw">def</span> conv (a b : G →₀ R) : G →₀ R :=</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  a.sum <span class="kw">fun</span> s r =&gt; b.sum <span class="kw">fun</span> t r&#39; =&gt; Finsupp.single (s * t) (r * r&#39;)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Running `a` and then `b` is the linear automaton of their convolution. -/</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> linCA_conv (a b : G →₀ R) (x : Config G R) :</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    linCA b (linCA a x) = linCA (conv a b) x := <span class="kw">by</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> g</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [linCA_apply, conv]</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [Finsupp.sum_sum_index (<span class="kw">fun</span> _ =&gt; zero_mul _) (<span class="kw">fun</span> _ _ _ =&gt; add_mul _ _ _)]</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> h1 : ∀ s r, ((b.sum <span class="kw">fun</span> t r&#39; =&gt; Finsupp.single (s * t) (r * r&#39;)).sum</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>      <span class="kw">fun</span> u r =&gt; r * x (u * g)) = b.sum <span class="kw">fun</span> t r&#39; =&gt; r * r&#39; * x (s * t * g) := <span class="kw">by</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">intro</span> s r</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [Finsupp.sum_sum_index (<span class="kw">fun</span> _ =&gt; zero_mul _) (<span class="kw">fun</span> _ _ _ =&gt; add_mul _ _ _)]</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> Finsupp.sum_congr <span class="kw">fun</span> t _ =&gt; Finsupp.sum_single_index (zero_mul _)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [h1, Finsupp.mul_sum]</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [Finsupp.sum_comm]</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> Finsupp.sum_congr <span class="kw">fun</span> s _ =&gt; Finsupp.sum_congr <span class="kw">fun</span> t _ =&gt; ?_</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [mul_assoc s t g]; <span class="cf">ring</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The product of the group algebra is the convolution of coefficients. -/</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> monoidAlgebra_mul_eq_conv (a b : MonoidAlgebra R G) :</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    (a * b : MonoidAlgebra R G) = (conv a b : G →₀ R) := <span class="kw">by</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [MonoidAlgebra.mul_def]; <span class="cf">rfl</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Composition through the coefficients.** Running `a` and then `b` is the linear automaton</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="do">of the product `a * b` in the group algebra (`compose(L, M)`). -/</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> linCA_mul (a b : MonoidAlgebra R G) (x : Config G R) :</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>    linCA b (linCA a x) = linCA (a * b : MonoidAlgebra R G) x := <span class="kw">by</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [linCA_conv, monoidAlgebra_mul_eq_conv]</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The unit of the group algebra is the identity automaton. -/</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> linCA_one (x : Config G R) : linCA (<span class="dv">1</span> : MonoidAlgebra R G) x = x := <span class="kw">by</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> g</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [MonoidAlgebra.one_def, linCA_apply, MonoidAlgebra.single, Finsupp.sum_single_index] &lt;;&gt;</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Powers through the coefficients: running `a` `n` times is the linear automaton of `a ^ n`</span></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a><span class="do">(`L^n`, computed by repeated squaring of the coefficients). -/</span></span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> linCA_pow (a : MonoidAlgebra R G) (n : ℕ) (x : Config G R) :</span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>    (linCA a)^[n] x = linCA (a ^ n : MonoidAlgebra R G) x := <span class="kw">by</span></span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">generalizing</span> x <span class="kw">with</span></span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">simp</span> [linCA_one]</span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt;</span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [Function.iterate_succ_apply&#39;, ih, linCA_mul, ← pow_succ]</span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A linear automaton is a cellular automaton (`CellularAutomaton(L)`): its memory set is the</span></span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a><span class="do">support of its coefficients and its local rule the weighted sum. -/</span></span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> isCA_linCA (a : G →₀ R) : IsCA G (linCA a) := <span class="kw">by</span></span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>  classical</span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> ⟨a.support, inferInstance, <span class="kw">fun</span> s =&gt; s<span class="fl">.1</span>,</span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fun</span> p =&gt; ∑ s : a.support, a s<span class="fl">.1</span> * p s, ?_⟩</span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> x g</span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [linCA_apply, ca_apply, Finsupp.sum]</span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> (Finset.sum_coe_sort a.support (<span class="kw">fun</span> s =&gt; a s * x (s * g))).symm</span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 <!-- CategoricalCellularAutomataProofs/Generalized.lean -->
 <h1 id="generalised-cellular-automata-and-pullbacks">Generalised
 cellular automata and pullbacks</h1>
-<div class="sourceCode" id="cb5"><pre
-class="sourceCode lean"><code class="sourceCode lean"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.CellularAutomata</span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.CellularAutomata</span></code></pre></div>
 <p>For a homomorphism <code>φ : H →* G</code>, a generalised cellular
 automaton maps configurations over <code>G</code> to configurations over
 <code>H</code> by <code>T(x)(h) = μ((x(s φ(h)))_{s ∈ S})</code>
@@ -407,70 +772,70 @@ pulled-back configuration;</li>
 homomorphism, with memory set the products <code>S i * φ(T j)</code>
 (the set <code>T_φ(S)</code> of <code>compose</code>).</li>
 </ul>
-<div class="sourceCode" id="cb6"><pre
-class="sourceCode lean"><code class="sourceCode lean"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {G H K A B C : <span class="kw">Type</span>*} {I J : <span class="kw">Type</span>*}</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> [Monoid G] [Monoid H] [Monoid K]</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The generalised cellular automaton along `φ` with memory set `S` and local rule `μ`. -/</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> gca (φ : H →* G) (S : I → G) (μ : (I → A) → B) (x : Config G A) : Config H B :=</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> h =&gt; μ (<span class="kw">fun</span> i =&gt; x (S i * φ h))</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="at">@[simp]</span> <span class="kw">theorem</span> gca_apply (φ : H →* G) (S : I → G) (μ : (I → A) → B) (x : Config G A)</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    (h : H) : gca φ S μ x h = μ (<span class="kw">fun</span> i =&gt; x (S i * φ h)) := <span class="cf">rfl</span></span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Factorisation.** `T = φ* ∘ τ` (`factorize(T) == (φ, τ)`). -/</span></span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_eq_pullback_ca (φ : H →* G) (S : I → G) (μ : (I → A) → B) (x : Config G A) :</span>
-<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    gca φ S μ x = pullback φ (ca S μ x) := <span class="cf">rfl</span></span>
-<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="do">/-- An ordinary cellular automaton is the generalised one over the identity homomorphism</span></span>
-<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="do">(`GeneralizedCA(τ)`). -/</span></span>
-<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_id (S : I → G) (μ : (I → A) → B) (x : Config G A) :</span>
-<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    gca (MonoidHom.id G) S μ x = ca S μ x := <span class="cf">rfl</span></span>
-<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Pullback commutes with local rules.** For a memory set `S` in `H`, running the cellular</span></span>
-<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="do">automaton over `G` with memory set `φ(S)` and pulling back equals pulling back and running the</span></span>
-<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a><span class="do">cellular automaton over `H` with memory set `S`: `φ* ∘ τ_{φ(S)} = τ_S ∘ φ*`. -/</span></span>
-<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> pullback_ca (φ : H →* G) (S : I → H) (μ : (I → A) → B) (x : Config G A) :</span>
-<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    pullback φ (ca (<span class="kw">fun</span> i =&gt; φ (S i)) μ x) = ca S μ (pullback φ x) := <span class="kw">by</span></span>
-<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> h; <span class="cf">simp</span> [pullback, ca, map_mul]</span>
-<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The same, as an equality of generalised and ordinary automata:</span></span>
-<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a><span class="do">`T_{φ, φ(S)} = τ_S ∘ φ*`. -/</span></span>
-<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_map_eq_ca_pullback (φ : H →* G) (S : I → H) (μ : (I → A) → B)</span>
-<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a>    (x : Config G A) :</span>
-<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>    gca φ (<span class="kw">fun</span> i =&gt; φ (S i)) μ x = ca S μ (pullback φ x) :=</span>
-<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>  pullback_ca φ S μ x</span>
-<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A generalised automaton intertwines the shifts along `φ`: `T (φ(h) · x) = h · T x`. -/</span></span>
-<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_shift (φ : H →* G) (S : I → G) (μ : (I → A) → B) (h : H) (x : Config G A) :</span>
-<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>    gca φ S μ (shift (φ h) x) = shift h (gca φ S μ x) := <span class="kw">by</span></span>
-<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> k; <span class="cf">simp</span> [gca, shift, map_mul, mul_assoc]</span>
-<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Composition.** For `φ : H →* G` and `ψ : K →* H`, running `T = gca φ S μ` and then</span></span>
-<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="do">`U = gca ψ T ν` is the generalised automaton along `φ ∘ ψ` whose memory set is the family of</span></span>
-<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a><span class="do">products `S i * φ(T j)`, with the local rule applying `μ` to each block and `ν` to the</span></span>
-<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a><span class="do">results. -/</span></span>
-<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_comp (φ : H →* G) (S : I → G) (μ : (I → A) → B) (ψ : K →* H) (T : J → H)</span>
-<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a>    (ν : (J → B) → C) (x : Config G A) :</span>
-<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>    gca ψ T ν (gca φ S μ x) =</span>
-<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>      gca (φ.comp ψ) (<span class="kw">fun</span> p : J × I =&gt; S p<span class="fl">.2</span> * φ (T p<span class="fl">.1</span>))</span>
-<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>        (<span class="kw">fun</span> q =&gt; ν (<span class="kw">fun</span> j =&gt; μ (<span class="kw">fun</span> i =&gt; q (j, i)))) x := <span class="kw">by</span></span>
-<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> k; <span class="cf">simp</span> [gca, map_mul, mul_assoc]</span>
-<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
-<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {G H K A B C : <span class="kw">Type</span>*} {I J : <span class="kw">Type</span>*}</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> [Monoid G] [Monoid H] [Monoid K]</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The generalised cellular automaton along `φ` with memory set `S` and local rule `μ`. -/</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> gca (φ : H →* G) (S : I → G) (μ : (I → A) → B) (x : Config G A) : Config H B :=</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> h =&gt; μ (<span class="kw">fun</span> i =&gt; x (S i * φ h))</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="at">@[simp]</span> <span class="kw">theorem</span> gca_apply (φ : H →* G) (S : I → G) (μ : (I → A) → B) (x : Config G A)</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    (h : H) : gca φ S μ x h = μ (<span class="kw">fun</span> i =&gt; x (S i * φ h)) := <span class="cf">rfl</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Factorisation.** `T = φ* ∘ τ` (`factorize(T) == (φ, τ)`). -/</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_eq_pullback_ca (φ : H →* G) (S : I → G) (μ : (I → A) → B) (x : Config G A) :</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    gca φ S μ x = pullback φ (ca S μ x) := <span class="cf">rfl</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a><span class="do">/-- An ordinary cellular automaton is the generalised one over the identity homomorphism</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="do">(`GeneralizedCA(τ)`). -/</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_id (S : I → G) (μ : (I → A) → B) (x : Config G A) :</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    gca (MonoidHom.id G) S μ x = ca S μ x := <span class="cf">rfl</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Pullback commutes with local rules.** For a memory set `S` in `H`, running the cellular</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="do">automaton over `G` with memory set `φ(S)` and pulling back equals pulling back and running the</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="do">cellular automaton over `H` with memory set `S`: `φ* ∘ τ_{φ(S)} = τ_S ∘ φ*`. -/</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> pullback_ca (φ : H →* G) (S : I → H) (μ : (I → A) → B) (x : Config G A) :</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>    pullback φ (ca (<span class="kw">fun</span> i =&gt; φ (S i)) μ x) = ca S μ (pullback φ x) := <span class="kw">by</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> h; <span class="cf">simp</span> [pullback, ca, map_mul]</span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The same, as an equality of generalised and ordinary automata:</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a><span class="do">`T_{φ, φ(S)} = τ_S ∘ φ*`. -/</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_map_eq_ca_pullback (φ : H →* G) (S : I → H) (μ : (I → A) → B)</span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    (x : Config G A) :</span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>    gca φ (<span class="kw">fun</span> i =&gt; φ (S i)) μ x = ca S μ (pullback φ x) :=</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>  pullback_ca φ S μ x</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A generalised automaton intertwines the shifts along `φ`: `T (φ(h) · x) = h · T x`. -/</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_shift (φ : H →* G) (S : I → G) (μ : (I → A) → B) (h : H) (x : Config G A) :</span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>    gca φ S μ (shift (φ h) x) = shift h (gca φ S μ x) := <span class="kw">by</span></span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> k; <span class="cf">simp</span> [gca, shift, map_mul, mul_assoc]</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Composition.** For `φ : H →* G` and `ψ : K →* H`, running `T = gca φ S μ` and then</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="do">`U = gca ψ T ν` is the generalised automaton along `φ ∘ ψ` whose memory set is the family of</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a><span class="do">products `S i * φ(T j)`, with the local rule applying `μ` to each block and `ν` to the</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a><span class="do">results. -/</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gca_comp (φ : H →* G) (S : I → G) (μ : (I → A) → B) (ψ : K →* H) (T : J → H)</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>    (ν : (J → B) → C) (x : Config G A) :</span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>    gca ψ T ν (gca φ S μ x) =</span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>      gca (φ.comp ψ) (<span class="kw">fun</span> p : J × I =&gt; S p<span class="fl">.2</span> * φ (T p<span class="fl">.1</span>))</span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>        (<span class="kw">fun</span> q =&gt; ν (<span class="kw">fun</span> j =&gt; μ (<span class="kw">fun</span> i =&gt; q (j, i)))) x := <span class="kw">by</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> k; <span class="cf">simp</span> [gca, map_mul, mul_assoc]</span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 <!-- CategoricalCellularAutomataProofs/Gluing.lean -->
 <h1 id="gluing-spaces">Gluing spaces</h1>
-<div class="sourceCode" id="cb7"><pre
-class="sourceCode lean"><code class="sourceCode lean"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.CategoryTheory.Limits.IsLimit</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.CategoryTheory.Types.Basic</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.List.Basic</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.CategoryTheory.Limits.IsLimit</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.CategoryTheory.Types.Basic</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.List.Basic</span></code></pre></div>
 <p><code>glue</code> builds a landscape as the colimit of patches: each
 patch is a set of cells (with the slots its interior cells read), the
 patches share cells along their feet, and the landscape’s cells are the
@@ -493,104 +858,194 @@ reads of its image. Then one step of the landscape, read on a patch’s
 interior, is the patch’s own step on the restricted configuration (halo
 exchange), and the steps of patches whose interiors cover the landscape
 determine the landscape’s step.</p>
-<div class="sourceCode" id="cb8"><pre
-class="sourceCode lean"><code class="sourceCode lean"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">open</span> CategoryTheory Limits</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> Limit</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {J : <span class="kw">Type</span> u} [SmallCategory J] {F : J ⥤ <span class="kw">Type</span> u} {c : Cocone F}</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Configurations of the glued space (functions from its cells to `A`) are the compatible</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="do">families of configurations of the patches: a cocone over the patches&#39; cells with apex `A`. -/</span></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> gluedConfigEquiv (hc : IsColimit c) (A : <span class="kw">Type</span> u) :</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    (c.pt ⟶ A) ≃ (F ⟶ (Functor.const J).obj A) :=</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  hc.homEquiv</span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The family a configuration of the glued space gives is its restriction to each patch. -/</span></span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gluedConfigEquiv_app (hc : IsColimit c) (A : <span class="kw">Type</span> u) (x : c.pt ⟶ A) (j : J) :</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    (gluedConfigEquiv hc A x).app j = c.ι.app j ≫ x :=</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rfl</span></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Unique gluing.** Configurations of the patches that agree along every map of the</span></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="do">diagram (on shared cells) are the restrictions of exactly one configuration of the glued</span></span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a><span class="do">space. -/</span></span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> exists_unique_glued_config (hc : IsColimit c) {A : <span class="kw">Type</span> u} (xs : ∀ j, F.obj j ⟶ A)</span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    (compat : ∀ {j k : J} (f : j ⟶ k), F.map f ≫ xs k = xs j) :</span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    ∃! x : c.pt ⟶ A, ∀ j, c.ι.app j ≫ x = xs j := <span class="kw">by</span></span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> s : Cocone F :=</span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>    { pt := A</span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>      ι := { app := xs</span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>             naturality := <span class="kw">fun</span> j k f =&gt; <span class="kw">by</span> <span class="cf">simpa</span> <span class="kw">using</span> compat f } }</span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> hc.existsUnique s</span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Two configurations of the glued space that agree on every patch are equal. -/</span></span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> glued_config_ext (hc : IsColimit c) {A : <span class="kw">Type</span> u} {x y : c.pt ⟶ A}</span>
-<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>    (h : ∀ j, c.ι.app j ≫ x = c.ι.app j ≫ y) : x = y :=</span>
-<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>  hc.hom_ext h</span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Limit</span>
-<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> Step</span>
-<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {X P Q A : <span class="kw">Type</span>*}</span>
-<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a><span class="do">/-- One synchronous step on a space whose cell `c` reads the cells `nbrs c` in slot order:</span></span>
-<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="do">the local rule `μ c` maps their values to the next value of `c`. -/</span></span>
-<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> step (nbrs : X → List X) (μ : X → List A → A) (x : X → A) : X → A :=</span>
-<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> c =&gt; μ c ((nbrs c).map x)</span>
-<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A patch of the landscape: the patch&#39;s cells `P` with a map `f` into the landscape&#39;s</span></span>
-<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a><span class="do">cells, and its interior cells `Q`, included by `ι`, each reading `nbrsP` in slot order. The</span></span>
-<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a><span class="do">map is a map of spaces on the interior: it sends the reads of an interior cell, in order, to</span></span>
-<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a><span class="do">the reads of its image. -/</span></span>
-<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> Patch (X P Q : <span class="kw">Type</span>*) (nbrs : X → List X) <span class="kw">where</span></span>
-<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the patch&#39;s cells in the landscape -/</span></span>
-<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>  f : P → X</span>
-<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the interior cells among the patch&#39;s cells -/</span></span>
-<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>  ι : Q → P</span>
-<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the reads of each interior cell, in slot order -/</span></span>
-<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>  nbrsP : Q → List P</span>
-<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- reads are preserved, in order -/</span></span>
-<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>  map_nbrs : ∀ q, (nbrsP q).map f = nbrs (f (ι q))</span>
-<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The patch&#39;s own step on its interior, from a configuration of the patch&#39;s cells (interior</span></span>
-<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a><span class="do">and halo); the rule of an interior cell is the rule of its image. -/</span></span>
-<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> Patch.step {nbrs : X → List X} (p : Patch X P Q nbrs) (μ : X → List A → A) (z : P → A) :</span>
-<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>    Q → A :=</span>
-<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> q =&gt; μ (p.f (p.ι q)) ((p.nbrsP q).map z)</span>
-<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Halo exchange.** One step of the landscape, read on a patch&#39;s interior, is the patch&#39;s</span></span>
-<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a><span class="do">own step on the configuration restricted to the patch. -/</span></span>
-<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_restrict {nbrs : X → List X} (p : Patch X P Q nbrs) (μ : X → List A → A)</span>
-<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a>    (x : X → A) (q : Q) :</span>
-<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a>    step nbrs μ x (p.f (p.ι q)) = p.step μ (x ∘ p.f) q := <span class="kw">by</span></span>
-<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [step, Patch.step, ← p.map_nbrs, List.map_map]</span>
-<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Locality.** The landscape&#39;s next values on a patch&#39;s interior depend only on the</span></span>
-<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a><span class="do">configuration on the patch. -/</span></span>
-<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_local {nbrs : X → List X} (p : Patch X P Q nbrs) (μ : X → List A → A)</span>
-<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>    {x y : X → A} (h : x ∘ p.f = y ∘ p.f) (q : Q) :</span>
-<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>    step nbrs μ x (p.f (p.ι q)) = step nbrs μ y (p.f (p.ι q)) := <span class="kw">by</span></span>
-<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [step_restrict, step_restrict, h]</span>
-<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The patches determine the step.** If the interiors of a family of patches cover the</span></span>
-<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a><span class="do">landscape, the landscape&#39;s step is the unique configuration whose value on each patch&#39;s</span></span>
-<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a><span class="do">interior is that patch&#39;s step on the restriction. -/</span></span>
-<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_eq_of_cover {ι&#39; : <span class="kw">Type</span>*} {P Q : ι&#39; → <span class="kw">Type</span>*} {nbrs : X → List X}</span>
-<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a>    (ps : ∀ k, Patch X (P k) (Q k) nbrs) (μ : X → List A → A)</span>
-<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a>    (cover : ∀ c, ∃ k q, (ps k).f ((ps k).ι q) = c) (x y : X → A)</span>
-<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>    (hy : ∀ k q, y ((ps k).f ((ps k).ι q)) = (ps k).step μ (x ∘ (ps k).f) q) :</span>
-<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a>    y = step nbrs μ x := <span class="kw">by</span></span>
-<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> c</span>
-<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨k, q, rfl⟩ := cover c</span>
-<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [hy, step_restrict]</span>
-<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Step</span>
-<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="kw">open</span> CategoryTheory Limits</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> Limit</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {J : <span class="kw">Type</span> u} [SmallCategory J] {F : J ⥤ <span class="kw">Type</span> u} {c : Cocone F}</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Configurations of the glued space (functions from its cells to `A`) are the compatible</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="do">families of configurations of the patches: a cocone over the patches&#39; cells with apex `A`. -/</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> gluedConfigEquiv (hc : IsColimit c) (A : <span class="kw">Type</span> u) :</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    (c.pt ⟶ A) ≃ (F ⟶ (Functor.const J).obj A) :=</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>  hc.homEquiv</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The family a configuration of the glued space gives is its restriction to each patch. -/</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> gluedConfigEquiv_app (hc : IsColimit c) (A : <span class="kw">Type</span> u) (x : c.pt ⟶ A) (j : J) :</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    (gluedConfigEquiv hc A x).app j = c.ι.app j ≫ x :=</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rfl</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Unique gluing.** Configurations of the patches that agree along every map of the</span></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a><span class="do">diagram (on shared cells) are the restrictions of exactly one configuration of the glued</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="do">space. -/</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> exists_unique_glued_config (hc : IsColimit c) {A : <span class="kw">Type</span> u} (xs : ∀ j, F.obj j ⟶ A)</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    (compat : ∀ {j k : J} (f : j ⟶ k), F.map f ≫ xs k = xs j) :</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    ∃! x : c.pt ⟶ A, ∀ j, c.ι.app j ≫ x = xs j := <span class="kw">by</span></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> s : Cocone F :=</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    { pt := A</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>      ι := { app := xs</span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>             naturality := <span class="kw">fun</span> j k f =&gt; <span class="kw">by</span> <span class="cf">simpa</span> <span class="kw">using</span> compat f } }</span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> hc.existsUnique s</span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Two configurations of the glued space that agree on every patch are equal. -/</span></span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> glued_config_ext (hc : IsColimit c) {A : <span class="kw">Type</span> u} {x y : c.pt ⟶ A}</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>    (h : ∀ j, c.ι.app j ≫ x = c.ι.app j ≫ y) : x = y :=</span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>  hc.hom_ext h</span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Limit</span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> Step</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {X P Q A : <span class="kw">Type</span>*}</span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a><span class="do">/-- One synchronous step on a space whose cell `c` reads the cells `nbrs c` in slot order:</span></span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a><span class="do">the local rule `μ c` maps their values to the next value of `c`. -/</span></span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> step (nbrs : X → List X) (μ : X → List A → A) (x : X → A) : X → A :=</span>
+<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> c =&gt; μ c ((nbrs c).map x)</span>
+<span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A patch of the landscape: the patch&#39;s cells `P` with a map `f` into the landscape&#39;s</span></span>
+<span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a><span class="do">cells, and its interior cells `Q`, included by `ι`, each reading `nbrsP` in slot order. The</span></span>
+<span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a><span class="do">map is a map of spaces on the interior: it sends the reads of an interior cell, in order, to</span></span>
+<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a><span class="do">the reads of its image. -/</span></span>
+<span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> Patch (X P Q : <span class="kw">Type</span>*) (nbrs : X → List X) <span class="kw">where</span></span>
+<span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the patch&#39;s cells in the landscape -/</span></span>
+<span id="cb14-56"><a href="#cb14-56" aria-hidden="true" tabindex="-1"></a>  f : P → X</span>
+<span id="cb14-57"><a href="#cb14-57" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the interior cells among the patch&#39;s cells -/</span></span>
+<span id="cb14-58"><a href="#cb14-58" aria-hidden="true" tabindex="-1"></a>  ι : Q → P</span>
+<span id="cb14-59"><a href="#cb14-59" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the reads of each interior cell, in slot order -/</span></span>
+<span id="cb14-60"><a href="#cb14-60" aria-hidden="true" tabindex="-1"></a>  nbrsP : Q → List P</span>
+<span id="cb14-61"><a href="#cb14-61" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- reads are preserved, in order -/</span></span>
+<span id="cb14-62"><a href="#cb14-62" aria-hidden="true" tabindex="-1"></a>  map_nbrs : ∀ q, (nbrsP q).map f = nbrs (f (ι q))</span>
+<span id="cb14-63"><a href="#cb14-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-64"><a href="#cb14-64" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The patch&#39;s own step on its interior, from a configuration of the patch&#39;s cells (interior</span></span>
+<span id="cb14-65"><a href="#cb14-65" aria-hidden="true" tabindex="-1"></a><span class="do">and halo); the rule of an interior cell is the rule of its image. -/</span></span>
+<span id="cb14-66"><a href="#cb14-66" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> Patch.step {nbrs : X → List X} (p : Patch X P Q nbrs) (μ : X → List A → A) (z : P → A) :</span>
+<span id="cb14-67"><a href="#cb14-67" aria-hidden="true" tabindex="-1"></a>    Q → A :=</span>
+<span id="cb14-68"><a href="#cb14-68" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> q =&gt; μ (p.f (p.ι q)) ((p.nbrsP q).map z)</span>
+<span id="cb14-69"><a href="#cb14-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-70"><a href="#cb14-70" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Halo exchange.** One step of the landscape, read on a patch&#39;s interior, is the patch&#39;s</span></span>
+<span id="cb14-71"><a href="#cb14-71" aria-hidden="true" tabindex="-1"></a><span class="do">own step on the configuration restricted to the patch. -/</span></span>
+<span id="cb14-72"><a href="#cb14-72" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_restrict {nbrs : X → List X} (p : Patch X P Q nbrs) (μ : X → List A → A)</span>
+<span id="cb14-73"><a href="#cb14-73" aria-hidden="true" tabindex="-1"></a>    (x : X → A) (q : Q) :</span>
+<span id="cb14-74"><a href="#cb14-74" aria-hidden="true" tabindex="-1"></a>    step nbrs μ x (p.f (p.ι q)) = p.step μ (x ∘ p.f) q := <span class="kw">by</span></span>
+<span id="cb14-75"><a href="#cb14-75" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [step, Patch.step, ← p.map_nbrs, List.map_map]</span>
+<span id="cb14-76"><a href="#cb14-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-77"><a href="#cb14-77" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Locality.** The landscape&#39;s next values on a patch&#39;s interior depend only on the</span></span>
+<span id="cb14-78"><a href="#cb14-78" aria-hidden="true" tabindex="-1"></a><span class="do">configuration on the patch. -/</span></span>
+<span id="cb14-79"><a href="#cb14-79" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_local {nbrs : X → List X} (p : Patch X P Q nbrs) (μ : X → List A → A)</span>
+<span id="cb14-80"><a href="#cb14-80" aria-hidden="true" tabindex="-1"></a>    {x y : X → A} (h : x ∘ p.f = y ∘ p.f) (q : Q) :</span>
+<span id="cb14-81"><a href="#cb14-81" aria-hidden="true" tabindex="-1"></a>    step nbrs μ x (p.f (p.ι q)) = step nbrs μ y (p.f (p.ι q)) := <span class="kw">by</span></span>
+<span id="cb14-82"><a href="#cb14-82" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [step_restrict, step_restrict, h]</span>
+<span id="cb14-83"><a href="#cb14-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-84"><a href="#cb14-84" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The patches determine the step.** If the interiors of a family of patches cover the</span></span>
+<span id="cb14-85"><a href="#cb14-85" aria-hidden="true" tabindex="-1"></a><span class="do">landscape, the landscape&#39;s step is the unique configuration whose value on each patch&#39;s</span></span>
+<span id="cb14-86"><a href="#cb14-86" aria-hidden="true" tabindex="-1"></a><span class="do">interior is that patch&#39;s step on the restriction. -/</span></span>
+<span id="cb14-87"><a href="#cb14-87" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_eq_of_cover {ι&#39; : <span class="kw">Type</span>*} {P Q : ι&#39; → <span class="kw">Type</span>*} {nbrs : X → List X}</span>
+<span id="cb14-88"><a href="#cb14-88" aria-hidden="true" tabindex="-1"></a>    (ps : ∀ k, Patch X (P k) (Q k) nbrs) (μ : X → List A → A)</span>
+<span id="cb14-89"><a href="#cb14-89" aria-hidden="true" tabindex="-1"></a>    (cover : ∀ c, ∃ k q, (ps k).f ((ps k).ι q) = c) (x y : X → A)</span>
+<span id="cb14-90"><a href="#cb14-90" aria-hidden="true" tabindex="-1"></a>    (hy : ∀ k q, y ((ps k).f ((ps k).ι q)) = (ps k).step μ (x ∘ (ps k).f) q) :</span>
+<span id="cb14-91"><a href="#cb14-91" aria-hidden="true" tabindex="-1"></a>    y = step nbrs μ x := <span class="kw">by</span></span>
+<span id="cb14-92"><a href="#cb14-92" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> c</span>
+<span id="cb14-93"><a href="#cb14-93" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨k, q, rfl⟩ := cover c</span>
+<span id="cb14-94"><a href="#cb14-94" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [hy, step_restrict]</span>
+<span id="cb14-95"><a href="#cb14-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-96"><a href="#cb14-96" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Step</span>
+<span id="cb14-97"><a href="#cb14-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-98"><a href="#cb14-98" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/Spaces.lean -->
+<h1 id="moving-models-between-spaces">Moving models between spaces</h1>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Gluing</span></code></pre></div>
+<p>A space is a set of cells <code>X</code>, each reading its neighbours
+<code>nbrs c</code> in slot order (a list, so graphs, whose cells have
+different numbers of neighbours, are included). A map of spaces
+<code>φ : Y → X</code> preserves neighbours up to a reordering of each
+cell’s slots: <code>ρ y</code> puts the images of <code>y</code>’s
+neighbours in the slot order of <code>φ y</code>. A reordering moves
+list entries by position, so it commutes with relabelling them
+(<code>ρ_natural</code>): a natural transformation of the list functor,
+such as the identity (a covering) or reversal (a one-dimensional
+fold).</p>
+<p>The package’s <code>pullback(f, prob; space)</code> moves a problem
+along such a map: each cell <code>y</code> of the new space runs the
+rule of its image <code>φ y</code>, reading its neighbours reordered by
+<code>ρ y</code>, and draws the random numbers of <code>φ y</code>. A
+rule that depends on the cell and the time (as a rule drawing
+counter-based random numbers keyed by cell and step does) is a family
+<code>μ t c : List A → A</code>. The pulled-back run is the pullback of
+the run, step by step, for every such rule: no symmetry of the rule is
+needed.</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {X Y A : <span class="kw">Type</span> u}</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The run of a time-dependent rule: `run nbrs μ x n` is the configuration after `n`</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="do">synchronous steps from `x`, step `t` applying the rule `μ t`. -/</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run (nbrs : X → List X) (μ : ℕ → X → List A → A) (x : X → A) : ℕ → X → A</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  | <span class="dv">0</span> =&gt; x</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  | n + <span class="dv">1</span> =&gt; step nbrs (μ n) (run nbrs μ x n)</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of spaces `φ : Y → X` with slot reorderings `ρ`. -/</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> SpaceMap (Y X : <span class="kw">Type</span> u) (nbrsY : Y → List Y) (nbrsX : X → List X) <span class="kw">where</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- where each cell goes -/</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  φ : Y → X</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the reordering of each cell&#39;s slots, at every type of values -/</span></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>  ρ : Y → ∀ {B : <span class="kw">Type</span> u}, List B → List B</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- a reordering moves entries by position, so it commutes with relabelling them -/</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>  ρ_natural : ∀ (y : Y) {B C : <span class="kw">Type</span> u} (g : B → C) (l : List B), ρ y (l.map g) = (ρ y l).map g</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- neighbours are preserved: the images of `y`&#39;s neighbours, reordered, are `φ y`&#39;s -/</span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>  map_nbrs : ∀ y, ρ y ((nbrsY y).map φ) = nbrsX (φ y)</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {nbrsY : Y → List Y} {nbrsX : X → List X}</span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The rule pulled back along a map of spaces: the cell `y` runs the rule of `φ y` on its</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a><span class="do">neighbours&#39; values in `φ y`&#39;s slot order. -/</span></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SpaceMap.pullRule (f : SpaceMap Y X nbrsY nbrsX) (μ : X → List A → A) : Y → List A → A :=</span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> y l =&gt; μ (f.φ y) (f.ρ y l)</span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a><span class="do">/-- One step of the pulled-back rule from a pulled-back configuration is the pullback of one</span></span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a><span class="do">step. -/</span></span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> SpaceMap.step_pullback (f : SpaceMap Y X nbrsY nbrsX) (μ : X → List A → A)</span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>    (x : X → A) : step nbrsY (f.pullRule μ) (x ∘ f.φ) = step nbrsX μ x ∘ f.φ := <span class="kw">by</span></span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> y</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [step, SpaceMap.pullRule, Function.comp_apply]</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [← List.map_map, f.ρ_natural, f.map_nbrs]</span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Moving a model along a map of spaces.** The run of the pulled-back time-dependent rule</span></span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a><span class="do">from the pulled-back initial state is, at every step, the pullback of the run. -/</span></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> SpaceMap.run_pullback (f : SpaceMap Y X nbrsY nbrsX) (μ : ℕ → X → List A → A)</span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>    (x : X → A) (n : ℕ) :</span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>    run nbrsY (<span class="kw">fun</span> t =&gt; f.pullRule (μ t)) (x ∘ f.φ) n = run nbrsX μ x n ∘ f.φ := <span class="kw">by</span></span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">rfl</span></span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt; <span class="cf">simp</span> only [run, ih, SpaceMap.step_pullback]</span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A covering: a map that preserves neighbours slot by slot (no reordering). -/</span></span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SpaceMap.ofSlotwise (φ : Y → X) (h : ∀ y, (nbrsY y).map φ = nbrsX (φ y)) :</span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a>    SpaceMap Y X nbrsY nbrsX <span class="kw">where</span></span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a>  φ := φ</span>
+<span id="cb16-52"><a href="#cb16-52" aria-hidden="true" tabindex="-1"></a>  ρ _ _ l := l</span>
+<span id="cb16-53"><a href="#cb16-53" aria-hidden="true" tabindex="-1"></a>  ρ_natural _ _ _ _ _ := <span class="cf">rfl</span></span>
+<span id="cb16-54"><a href="#cb16-54" aria-hidden="true" tabindex="-1"></a>  map_nbrs := h</span>
+<span id="cb16-55"><a href="#cb16-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-56"><a href="#cb16-56" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A fold that reverses the slots of some cells (on a line with neighbours `[left, right]`,</span></span>
+<span id="cb16-57"><a href="#cb16-57" aria-hidden="true" tabindex="-1"></a><span class="do">the mirrored half reads them the other way round), as `reflection_fold` builds. -/</span></span>
+<span id="cb16-58"><a href="#cb16-58" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SpaceMap.ofReversing (φ : Y → X) (flip : Y → Bool)</span>
+<span id="cb16-59"><a href="#cb16-59" aria-hidden="true" tabindex="-1"></a>    (h : ∀ y, (<span class="kw">if</span> flip y <span class="kw">then</span> List.reverse <span class="kw">else</span> id) ((nbrsY y).map φ) = nbrsX (φ y)) :</span>
+<span id="cb16-60"><a href="#cb16-60" aria-hidden="true" tabindex="-1"></a>    SpaceMap Y X nbrsY nbrsX <span class="kw">where</span></span>
+<span id="cb16-61"><a href="#cb16-61" aria-hidden="true" tabindex="-1"></a>  φ := φ</span>
+<span id="cb16-62"><a href="#cb16-62" aria-hidden="true" tabindex="-1"></a>  ρ y _ l := <span class="kw">if</span> flip y <span class="kw">then</span> l.reverse <span class="kw">else</span> l</span>
+<span id="cb16-63"><a href="#cb16-63" aria-hidden="true" tabindex="-1"></a>  ρ_natural y _ _ g l := <span class="kw">by</span> <span class="cf">cases</span> flip y &lt;;&gt; <span class="cf">simp</span> [List.map_reverse]</span>
+<span id="cb16-64"><a href="#cb16-64" aria-hidden="true" tabindex="-1"></a>  map_nbrs y := <span class="kw">by</span> <span class="cf">simpa</span> [apply_ite (<span class="kw">fun</span> F : List X → List X =&gt; F ((nbrsY y).map φ))] <span class="kw">using</span> h y</span>
+<span id="cb16-65"><a href="#cb16-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-66"><a href="#cb16-66" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 </body>
 </html>

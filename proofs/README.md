@@ -32,10 +32,23 @@ JuliaMono read from `../../fonts/JuliaMono/`.
 3. `CellularAutomata.lean`: `τ(x)(g) = μ((x(s g))_{s ∈ S})` commutes with the shifts; two
    automata are equal when they agree at the identity (`σ == τ`); identity, composition over
    the products `T S` (`compose`), and pairing over a disjoint union of memory sets (`pair`).
-4. `Generalized.lean`: generalised automata along `φ : H →* G` factor as `φ* ∘ τ`
+4. `Category.lean`: the maps of configurations that are cellular automata form a category whose
+   objects are alphabets, with the product of alphabets as a categorical product and the
+   one-letter alphabet as terminal object, hence a Mathlib `CartesianMonoidalCategory`: the
+   structure of the package's Catlab instance of `ThCartesianCategory`.
+5. `CurtisHedlundLyndon.lean`: over any group, a map into a nonempty alphabet is a cellular
+   automaton exactly when it commutes with the shifts and its value at the identity depends on
+   finitely many cells; over a finite group, exactly when it commutes with the shifts.
+6. `Linear.lean`: linear automata `τ(x)(g) = Σ_s a_s x(s g)` over a commutative semiring compose
+   and take powers as products in the group algebra (`compose(L, M)` has coefficients `L * M`),
+   and are cellular automata.
+7. `Generalized.lean`: generalised automata along `φ : H →* G` factor as `φ* ∘ τ`
    (`factorize`); pullback commutes with local rules, `φ* ∘ τ_{φ(S)} = τ_S ∘ φ*`; they
    intertwine shifts along `φ` and compose along `φ ∘ ψ`.
-5. `Gluing.lean`: configurations of a space glued as a colimit of patches are exactly the
+8. `Gluing.lean`: configurations of a space glued as a colimit of patches are exactly the
    compatible families of configurations of the patches (a limit; unique gluing); one step of
    the landscape on a patch's interior is the patch's own step (halo exchange), and patches
    whose interiors cover the landscape determine its step.
+9. `Spaces.lean`: a problem moved along a map of spaces (each cell reading its neighbours in
+   its image's slot order and running its image's time-dependent rule) runs, step by step, the
+   pullback of the original run, for every rule; coverings and reversing folds are instances.

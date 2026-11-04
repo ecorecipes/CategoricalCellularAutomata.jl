@@ -9,6 +9,7 @@ Simon Frost
 - [Constant edges are pinned cells](#constant-edges-are-pinned-cells)
 - [Graphs](#graphs)
 - [Composites on any geometry](#composites-on-any-geometry)
+- [Moving a model between spaces](#moving-a-model-between-spaces)
 - [A category of spaces](#a-category-of-spaces)
 - [Summary](#summary)
 
@@ -232,6 +233,81 @@ plot(sol; snapshot=length(sol.u), layer=:host, colorbar=false,
 The infection spreads as a hexagon, the shape of the balls of the
 hexagonal neighbourhood.
 
+## Moving a model between spaces
+
+Pulling back a configuration and rerunning the same rule only works for
+rules that do not care about the slot permutations.
+`pullback(f, prob; space)` moves a whole problem instead: the initial
+state, covariates and mask are pulled back, and each cell of the new
+space runs the rule of its image, reading its neighbours in its image’s
+slot order and drawing its image’s random numbers. Its solution is the
+pullback of the original solution, for every rule, stochastic or not,
+symmetric or not.
+
+Here is an epidemic carried by a wind from the west: an infected
+neighbour on the west side infects far more often than one on the east.
+The field has reflecting edges, so it is a quotient of the doubled torus
+by reflections, and on the mirrored halves the west side of a cell is
+its image’s east side.
+
+``` julia
+using CellularAutomataCore: @camodel, bernoulli
+field = Grid(16, 10; boundary=Reflecting())
+offsets = collect(neighbourhood_offsets(Moore(1), field))
+weights = Tuple(o[1] < 0 ? 0.7 : 0.05 for o in offsets)
+windy = @camodel WindySIR begin
+    @states state::Symbol = :S ∈ (:S, :I, :R)
+    @parameters γ = 0.15
+    @neighbourhood Moore(1)
+    @rule begin
+        if cell == :S
+            escape = prod(n == :I ? 1 - w : 1.0 for (n, w) in zip(nbrs, weights))
+            bernoulli(ctx, 1 - escape, 1) ? :I : :S
+        elseif cell == :I
+            bernoulli(ctx, γ, 2) ? :R : :I
+        else
+            cell
+        end
+    end
+end
+start = I -> I == CartesianIndex(3, 5) ? :I : :S
+prob = CAProblem(windy, (; state=start), 18; space=field, seed=5)
+fold = reflection_fold(field, Moore(1))
+moved = pullback(fold, prob; space=Torus(32, 20))
+sol, big = solve(prob), solve(moved)
+all(t -> big.u[t] == pullback(fold, sol.u[t]; space=Torus(32, 20)), eachindex(sol.u))
+```
+
+    true
+
+The run on the doubled torus is the run on the field, mirrored into each
+quarter (purple susceptible, green recovered, yellow infected); on the
+mirrored halves the wind blows from the east:
+
+``` julia
+code(u) = map(s -> s == :S ? 0 : s == :I ? 2 : 1, u)
+plot(heatmap(code(sol.u[end])'; c=:viridis, colorbar=false, clims=(0, 2),
+             title="16 × 10, reflecting"),
+     heatmap(code(big.u[end])'; c=:viridis, colorbar=false, clims=(0, 2),
+             title="32 × 20 torus, pulled back");
+     layout=(1, 2), size=(800, 260), aspect_ratio=1, ticks=false, yflip=true,
+     titlefontsize=10)
+```
+
+![](11_geometries_files/figure-commonmark/cell-13-output-1.svg)
+
+The same rule rerun on the torus from the mirrored start, with each cell
+drawing its own random numbers and reading its own west neighbour, is a
+different epidemic:
+
+``` julia
+rerun = solve(CAProblem(windy, (; state=moved.u0), 18;
+                        space=Torus(32, 20), seed=5))
+rerun.u[end] == big.u[end]
+```
+
+    false
+
 ## A category of spaces
 
 Maps of spaces compose: cells go through both maps, and the slot
@@ -261,10 +337,11 @@ x = rand(Xoshiro(7), 0:1, 24)
 | geometry | as a space | relation to the plane |
 |----|----|----|
 | square or hexagonal torus | Cayley space of `Z_n × Z_m`, marked by the neighbourhood | quotient by translations (`covering`) |
-| reflecting edges | lattice whose edge cells read their mirror images | quotient of a doubled torus by reflections (`reflection_fold`), for symmetric rules |
+| reflecting edges | lattice whose edge cells read their mirror images | quotient of a doubled torus by reflections (`reflection_fold`): symmetric rules descend as they are, any problem moves with `pullback` |
 | constant edges | lattice plus a pinned cell for each constant | pointed extension |
 | graph | lists of varying length | none: a space in its own right |
 
 In each case a local rule is the same thing, a function of a cell and
 its neighbours, and the maps between spaces carry configurations and the
-rule’s dynamics together.
+rule’s dynamics together. Pulling a whole problem back along a map moves
+a model, random numbers included, from one space to another.

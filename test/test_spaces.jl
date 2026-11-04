@@ -147,6 +147,110 @@ end
     @test occursin("SpaceMorphism", sprint(show, SpaceMorphism(S, S, [2, 3, 4, 1])))
 end
 
+@testset "pulling problems back" begin
+    rng = Xoshiro(3)
+    states_commute(f, sol, big, space) = length(big.u) == length(sol.u) &&
+                                         all(t -> big.u[t] ==
+                                                  pullback(f, sol.u[t]; space),
+                                             eachindex(sol.u))
+    # a deterministic rule on a covering: the big torus runs the small torus's run, tiled
+    small, large = Torus(6, 4), Torus(12, 12)
+    f = covering(large, small, Moore(1))
+    prob = CAProblem(Life(), rand(rng, 0:1, 6, 4), 15; space=small)
+    pulled = pullback(f, prob; space=large)
+    @test pulled.space == large && size(pulled.u0) == (12, 12)
+    @test states_commute(f, solve(prob), solve(pulled), large)
+    # a stochastic model: each cell of the cover draws its image's random numbers, so the runs
+    # agree exactly; drawing its own numbers (the rule simply rerun on the cover) does not
+    sir = @camodel SIR begin
+        @states state::Symbol = :S ∈ (:S, :I, :R)
+        @parameters β = 0.4 γ = 0.2
+        @neighbourhood VonNeumann(1)
+        @rule begin
+            if cell == :S
+                bernoulli(ctx, 1 - (1 - β)^count(==(:I), nbrs), 1) ? :I : :S
+            elseif cell == :I
+                bernoulli(ctx, γ, 2) ? :R : :I
+            else
+                cell
+            end
+        end
+    end
+    g = covering(Torus(15, 12), Torus(5, 4), VonNeumann(1))
+    prob = CAProblem(sir, (; state=I -> I == CartesianIndex(2, 2) ? :I : :S), 20, (; β=0.5);
+                     space=Torus(5, 4), seed=7)
+    sol = solve(prob)
+    pulled = pullback(g, prob; space=Torus(15, 12))
+    @test pulled.p == prob.p && pulled.seed == prob.seed
+    @test states_commute(g, sol, solve(pulled), Torus(15, 12))
+    @test any(t -> sol.u[t] != sol.u[1], eachindex(sol.u))
+    rerun = solve(CAProblem(prob.rule, pulled.u0, 20, prob.p; space=Torus(15, 12), seed=7))
+    @test !states_commute(g, sol, rerun, Torus(15, 12))
+    # a reflecting lattice as a quotient of a doubled torus: the pulled-back rule reads its
+    # neighbours in the image's slot order, so even an anisotropic rule descends
+    space = Grid(7, 5; boundary=Reflecting())
+    h = reflection_fold(space, Moore(1))
+    skew = LocalRule((c, nb, ctx) -> mod(c + 2nb[1] + nb[4] + 3nb[8], 5), Moore(1))
+    prob = CAProblem(skew, rand(rng, 0:4, 7, 5), 10; space)
+    pulled = pullback(h, prob; space=Torus(14, 10))
+    @test states_commute(h, solve(prob), solve(pulled), Torus(14, 10))
+    naive = solve(CAProblem(skew, pulled.u0, 10; space=Torus(14, 10)))
+    @test !states_commute(h, solve(prob), naive, Torus(14, 10))
+    # layered states, fixed and time-varying covariates and a mask are pulled back too
+    c = covering(Torus(8, 6), Torus(4, 3), VonNeumann(1))
+    layered = LocalRule(VonNeumann(1)) do cell, nb, ctx
+        heat = covariate(ctx, :heat) + covariate(ctx, :season) + sum(n.a for n in nb)
+        return (a=mod(cell.a + heat + (uniform(ctx, 1) < 0.3), 4),
+                b=cell.b + ctx.p.k * cell.a)
+    end
+    prob = CAProblem(layered, (a=rand(rng, 0:3, 4, 3), b=zeros(4, 3)), 9, (; k=0.5);
+                     space=Torus(4, 3), seed=11,
+                     covariates=(heat=rand(rng, 0:2, 4, 3), season=rand(rng, 0:1, 4, 3, 5)),
+                     mask=rand(rng, Bool, 4, 3))
+    pulled = pullback(c, prob; space=Torus(8, 6))
+    @test pulled.covariates.heat == pullback(c, prob.covariates.heat; space=Torus(8, 6))
+    @test size(pulled.covariates.season) == (8, 6, 5) &&
+          pulled.covariates.season[:, :, 3] ==
+          pullback(c, prob.covariates.season[:, :, 3]; space=Torus(8, 6))
+    @test pulled.mask == pullback(c, prob.mask; space=Torus(8, 6))
+    @test states_commute(c, solve(prob), solve(pulled), Torus(8, 6))
+    # graphs: an 8-cycle covers a 4-cycle (neighbour lists are sorted, so some cells' slots are
+    # permuted, and the pulled-back rule reads a vector of neighbours in the image's order)
+    ring(n) = GraphSpace(n, [(i, mod1(i + 1, n)) for i in 1:n])
+    R8, R4 = neighbourhood_space(ring(8)), neighbourhood_space(ring(4))
+    slots = [[findfirst(==(mod1(j, 4)), R4.neighbours[mod1(y, 4)])
+              for j in R8.neighbours[y]]
+             for y in 1:8]
+    @test any(σ -> σ != eachindex(σ), slots)
+    cover = SpaceMorphism(R8, R4, [mod1(i, 4) for i in 1:8], slots)
+    @test is_morphism(cover)
+    walk = LocalRule((cell, nb, ctx) -> mod(cell + 2nb[1] + nb[2] + (uniform(ctx, 1) < 0.5),
+                                            7),
+                     GraphNeighbours())
+    prob = CAProblem(walk, rand(rng, 0:3, 4), 6; space=ring(4), seed=3)
+    @test states_commute(cover, solve(prob), solve(pullback(cover, prob; space=ring(8))),
+                         ring(8))
+    # what cannot be pulled back
+    prob = CAProblem(Life(), rand(rng, 0:1, 6, 4), 3; space=small)
+    @test_throws DomainMismatchError pullback(f, prob; space=Torus(12, 8))
+    @test_throws DomainMismatchError pullback(f, CAProblem(Life(), rand(rng, 0:1, 6, 6), 3);
+                                              space=large)
+    @test_throws DomainMismatchError pullback(covering(large, small, VonNeumann(1)), prob;
+                                              space=large)
+    S = neighbourhood_space(Torus(4), Offsets([CartesianIndex(1)]))
+    shift = LocalRule((c, nb, ctx) -> only(nb), Offsets([CartesianIndex(1)]))
+    @test_throws ArgumentError pullback(SpaceMorphism(S, S, [1, 1, 2, 2]),
+                                        CAProblem(shift, [1, 2, 3, 4], 2; space=Torus(4));
+                                        space=Torus(4))
+    events = EventRule((cell, nb, ctx) -> (0.5 => 1 - cell,), Moore(1))
+    @test_throws ArgumentError pullback(f,
+                                        CAProblem(events, rand(rng, 0:1, 6, 4), 2.0;
+                                                  space=small); space=large)
+    @test_throws ArgumentError pullback(f, rand(rng, 0:1, 5, 4))
+    @test_throws ArgumentError pullback(f, rand(rng, 0:1, 6, 4); space=Torus(12, 8))
+    @test occursin("pullback of", sprint(show, pullback(f, prob; space=large).rule))
+end
+
 @testset "composites on other geometries" begin
     # the crop and aphid composite, with hexagonal neighbourhoods and on a graph
     for (space, nbhd) in ((HexGrid(16, 12), Hexagonal(1)),

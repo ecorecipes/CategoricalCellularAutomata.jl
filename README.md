@@ -34,14 +34,17 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` �
   one owner per layer and per-model random numbers, on square or hexagonal lattices and on graphs; and
   geometries beyond groups: any core space as a set of cells with neighbour lists (a coalgebra), maps of
   spaces along which configurations pull back and local rules commute (coverings of tori, reflecting edges
-  as a fold of a doubled torus), constant edges as pinned cells; and landscapes glued from patches:
+  as a fold of a doubled torus), whole problems moved along such maps (`pullback(f, prob; space)`, random
+  numbers included, for any rule), constant edges as pinned cells; and landscapes glued from patches:
   spaces as C-sets of cells and neighbour slots, lattice patches with halos, gluing as a colimit along
   undirected wiring diagrams (`glue`), on which a local rule restricts to each patch.
 - **Formal proofs**: a Lean 4 / Mathlib library in [`proofs/`](proofs/README.md) proves, for any group and
   alphabet, the laws the test suite checks numerically: shifts and pullbacks, equivariance and equality at
-  the identity, composition and pairing, factorisation of generalised automata and pullback commuting with
-  local rules, and gluing (configurations of a glued space form a limit; a landscape's step on a patch is
-  the patch's step).
+  the identity, composition and pairing, the cartesian monoidal category of cellular automata,
+  Curtis–Hedlund–Lyndon (with the finite-group converse), linear automata composing as group-algebra
+  products, factorisation of generalised automata and pullback commuting with local rules, gluing
+  (configurations of a glued space form a limit; a landscape's step on a patch is the patch's step), and
+  problems moved along maps of spaces running the pullback of the original run.
 
 ## Quick Start
 
@@ -87,7 +90,7 @@ Requires Julia ≥ 1.12.
 | 8 | [Free products and weak products](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/08_free_products/08_free_products.md) | Free products of groups, the weak product of generalised automata, and why pairs are not unique |
 | 9 | [Stochastic cellular automata in a Markov category](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/09_stochastic_ca_markov/09_stochastic_ca_markov.md) | Research extension: exact distributions, copying, couplings and draw numbers, correlated composites |
 | 10 | [Composing models over shared layers](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/10_composing_models/10_composing_models.md) | Research extension: crop, aphid and spraying models composed with `@relation` and `oapply` |
-| 11 | [Geometries](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/11_geometries/11_geometries.md) | Research extension: square and hexagonal tori as Cayley spaces, periodic and reflecting edges as quotients, constant edges as pinned cells, graphs, and composites on any geometry |
+| 11 | [Geometries](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/11_geometries/11_geometries.md) | Research extension: square and hexagonal tori as Cayley spaces, periodic and reflecting edges as quotients, constant edges as pinned cells, graphs, composites on any geometry, and moving a model between spaces |
 | 12 | [Gluing spaces](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/12_gluing_spaces/12_gluing_spaces.md) | Research extension: landscapes as colimits of patches (strips, cylinders, tori, blocks), gluing in stages, dynamics restricted to patches, and fields joined by a road |
 
 Each vignette is also published as a tutorial in the

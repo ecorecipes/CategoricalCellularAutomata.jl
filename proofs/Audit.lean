@@ -20,6 +20,24 @@ open CategoricalCellularAutomataProofs
 #print axioms ca_comp
 #print axioms ca_comp_shift
 #print axioms ca_pair
+-- Category.lean
+#print axioms isCA_id
+#print axioms isCA_comp
+#print axioms IsCA.shift_comm
+#print axioms prodIsLimit
+#print axioms unitIsTerminal
+#print axioms instCartesianMonoidalCategoryCAObj
+-- CurtisHedlundLyndon.lean
+#print axioms IsCA.exists_localAt
+#print axioms isCA_iff_shift_comm_and_local
+#print axioms isCA_iff_shift_comm
+-- Linear.lean
+#print axioms linCA_conv
+#print axioms monoidAlgebra_mul_eq_conv
+#print axioms linCA_mul
+#print axioms linCA_one
+#print axioms linCA_pow
+#print axioms isCA_linCA
 -- Generalized.lean
 #print axioms gca_eq_pullback_ca
 #print axioms gca_id
@@ -35,3 +53,6 @@ open CategoricalCellularAutomataProofs
 #print axioms step_restrict
 #print axioms step_local
 #print axioms step_eq_of_cover
+-- Spaces.lean
+#print axioms SpaceMap.step_pullback
+#print axioms SpaceMap.run_pullback
