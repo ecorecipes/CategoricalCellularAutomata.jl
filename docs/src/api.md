@@ -139,6 +139,8 @@ models they form a category.
 ModelMap
 is_model_map
 pushforward(::ModelMap, ::Any)
+quotient
+forget_layers
 compose(::ModelMap, ::ModelMap)
 ```
 

@@ -261,6 +261,22 @@ function pullback(f::SpaceMorphism, u::NamedTuple; space=nothing)
     return map(x -> pullback(f, x; space), u)
 end
 
+# Solver keywords for a problem moved to another model or space. A callback acts on the whole state
+# of the problem it was written for, so it does not simply move with it: the caller must say which
+# callback the new problem has, or `nothing` for none.
+struct _Unset end
+const _UNSET = _Unset()
+function _moved_keywords(prob::CAC.CAProblem, callback, what::AbstractString)
+    kw = prob.kwargs
+    if callback === _UNSET
+        get(kw, :callback, nothing) === nothing ||
+            throw(ArgumentError("$what: the problem has a callback, written for its own state and space; give the new problem's with `callback=` (`nothing` for none)"))
+        return kw
+    end
+    rest = Base.structdiff(kw, (; callback=nothing))
+    return callback === nothing ? rest : merge(rest, (; callback))
+end
+
 # A rule pulled back along a map of spaces: the cell `y` of the domain runs the rule of its image
 # `φ(y)`, reading its neighbours in the image's slot order and drawing the image's random numbers.
 struct _PulledBackRule{R<:CAC.AbstractRule} <: CAC.AbstractRule
@@ -293,7 +309,7 @@ function _pull_covariate(f::SpaceMorphism, a::AbstractArray, from, to)
 end
 
 """
-    pullback(f::SpaceMorphism, prob::CAProblem; space) -> CAProblem
+    pullback(f::SpaceMorphism, prob::CAProblem; space, callback) -> CAProblem
 
 The problem `prob` moved along `f` to the CellularAutomataCore `space` that the
 domain of `f` was built from: its initial state, covariates and mask pulled
@@ -313,8 +329,15 @@ fields (recomputed on `space`) and solver keywords are kept. Kernel fields
 agree with the codomain's when the map preserves them too (a covering, or a
 fold with a kernel symmetric under reflection); a rule that reads `ctx.index`
 sees the cell of `space`. Event rules and block rules cannot be pulled back.
+
+A callback stored with `prob` acts on the whole state, so moving the rule says
+nothing about it, and the statement above covers the rule alone. A problem with
+a callback raises `ArgumentError` unless `callback` gives the new problem's
+(`nothing` for none); whether a given callback commutes with the map has to be
+checked by running both problems.
 """
-function pullback(f::SpaceMorphism, prob::CAC.CAProblem; space::CAC.AbstractSpace)
+function pullback(f::SpaceMorphism, prob::CAC.CAProblem; space::CAC.AbstractSpace,
+                  callback=_UNSET)
     rule = prob.rule
     rule isa Union{CAC.EventRule,CAC.BlockRule} &&
         throw(ArgumentError("cannot pull back $rule: only rules stepped cell by cell in discrete time"))
@@ -329,14 +352,15 @@ function pullback(f::SpaceMorphism, prob::CAC.CAProblem; space::CAC.AbstractSpac
     dom == f.dom ||
         throw(DomainMismatchError("pulling a problem back along a map of spaces (the new space)",
                                   f.dom, dom))
+    keywords = _moved_keywords(prob, callback,
+                               "pulling a problem back along a map of spaces")
     trivial = all(σ -> σ == eachindex(σ), f.slots)
     pulled = _PulledBackRule(rule, f.map, trivial ? nothing : map(invperm, f.slots))
     covariates = map(a -> _pull_covariate(f, a, prob.space, space), prob.covariates)
     mask = prob.mask === nothing ? nothing : pullback(f, prob.mask; space)
     user_fields = Base.structdiff(prob.field_specs, CAC.fields(rule))
     return CAC.CAProblem(pulled, pullback(f, prob.u0; space), prob.tspan, prob.p; space,
-                         seed=prob.seed, covariates, fields=user_fields, mask,
-                         prob.kwargs...)
+                         seed=prob.seed, covariates, fields=user_fields, mask, keywords...)
 end
 
 """

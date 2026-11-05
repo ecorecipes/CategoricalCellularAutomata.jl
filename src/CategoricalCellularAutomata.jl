@@ -54,7 +54,7 @@ export LinearCA, coefficients, isinvertible, is_monotone
 export StochasticCA, distribution, marginal, stochastic_pair
 export OpenCAModel, oapply
 # Research extension: maps between models, a category
-export ModelMap, is_model_map
+export ModelMap, is_model_map, quotient, forget_layers
 # CellularAutomataCore
 export torus_group, torus_space
 # Geometries: neighbourhood spaces and the maps between them

@@ -178,7 +178,98 @@
     big = solve(pullback(φ, small; space=Torus(15, 12)))
     @test mapped_runs(untrace, big, solve(one))
 
+    # a quotient needs no rule of its own: the traced model's rule, lifted and mapped down, runs
+    # the plain SIR exactly, and forgetting a label that feeds back does not give a map
+    q = quotient(traced, c -> c.state, s -> (state=s, lineage=0);
+                 states=[StateVariable(:state, :S; domain=(:S, :I, :R))],
+                 name=:QuotientSIR)
+    @test codom(q).name == :QuotientSIR && dom(q) === traced && is_model_map(q)
+    qsol = solve(pushforward(q, prob))
+    @test qsol.u == solve(pushforward(untrace, prob)).u
+    @test sprint(show, codom(q).rule) == "quotient of " * sprint(show, traced.rule)
+    forgot = forget_layers(traced, :lineage)
+    @test [s.name for s in CellularAutomataCore.states(codom(forgot))] == [:state]
+    @test codom(forgot).name == :TracedSIR_without_lineage && is_model_map(forgot)
+    @test is_model_map(forgot, prob)
+    @test solve(pushforward(forgot, prob)).u == qsol.u
+    @test !is_model_map(forget_layers(virulent, :lineage))
+    @test !is_model_map(forget_layers(virulent, :lineage), vprob)
+    # forgetting the state instead: the lineage reads it, so this is not a map
+    @test !is_model_map(forget_layers(traced, :state))
+    # several layers, keeping several: a record of the step each cell was reached
+    records = @camodel Records begin
+        @states state::Symbol = :S ∈ (:S, :I) load::Int = 0 reached::Int = -1 seen::Bool = false
+        @neighbourhood VonNeumann(1)
+        @rule begin
+            cell.state == :I && return (; cell..., load=cell.load + 1)
+            any(n -> n.state == :I, nbrs) || return cell
+            return (; cell..., state=:I, reached=ctx.t, seen=true)
+        end
+    end
+    rec = forget_layers(records, :reached, :seen)
+    @test [s.name for s in CellularAutomataCore.states(codom(rec))] == [:state, :load]
+    rprob = CAProblem(records, (; state=I -> I == CartesianIndex(3, 3) ? :I : :S), 8;
+                      space=Torus(7, 7))
+    @test is_model_map(rec, rprob)
+    @test maximum(solve(rprob).u[end].reached) > 0
+    @test keys(pushforward(rec, rprob).u0) == (:state, :load)
+
+    # sampling local configurations: finds a failure among too many to enumerate, and agrees
+    # with the exhaustive check where both can run
+    many = (; cells=[(state=s, lineage=l) for s in (:S, :I, :R) for l in 0:3])
+    @test is_model_map(untrace; many..., samples=2000)
+    @test !is_model_map(vmap; many..., samples=2000)
+    @test_throws ArgumentError is_model_map(untrace; contexts=10^4)
+    @test is_model_map(untrace; contexts=10^4, samples=5)
+
+    # a run check sees what a local check cannot: a callback that reads the forgotten label
+    # acts on the whole state, so the rule alone commutes and the problem does not
+    cull = DiscreteCallback((u, t, integ) -> t == 3,
+                            function (integ)
+                                integ.u.state[integ.u.lineage .== 3] .= :R
+                                return nothing
+                            end; save_positions=(false, false))
+    culled = remake(prob; kwargs=(; callback=cull))
+    @test_throws ArgumentError pushforward(untrace, culled)
+    @test_throws ArgumentError is_model_map(untrace, culled)
+    @test is_model_map(untrace) && !is_model_map(untrace, culled; callback=nothing)
+    @test get(pushforward(untrace, culled; callback=nothing).kwargs, :callback, nothing) ===
+          nothing
+    # a callback that reads only what is kept can be given to the codomain too, and commutes
+    clear(state) = (state.=map(s -> s == :I ? :R : s, state); nothing)
+    all_of(u::NamedTuple) = u.state
+    all_of(u::AbstractArray) = u
+    stop = () -> DiscreteCallback((u, t, integ) -> t == 5,
+                                  integ -> clear(all_of(integ.u));
+                                  save_positions=(false, false))
+    stopped = remake(prob; kwargs=(; callback=stop()))
+    moved = pushforward(untrace, stopped; callback=stop())
+    @test haskey(moved.kwargs, :callback)
+    @test is_model_map(untrace, stopped; callback=stop())
+    @test solve(stopped).u[end] != sol.u[end]
+    # other solver keywords move with the problem, and the check passes them to both solves
+    saved = remake(prob; kwargs=(; saveat=5))
+    @test pushforward(untrace, saved).kwargs == (; saveat=5)
+    @test is_model_map(untrace, saved)
+    @test is_model_map(untrace, prob; saveat=10)
+    # the callback is not moved by a map of spaces either: its action on the state need not
+    # commute with the map, so the caller says what it is
+    cprob = remake(small; kwargs=(; callback=stop()))
+    @test_throws ArgumentError pullback(φ, cprob; space=Torus(15, 12))
+    @test get(pullback(φ, cprob; space=Torus(15, 12), callback=nothing).kwargs, :callback,
+              nothing) === nothing
+    @test haskey(pullback(φ, cprob; space=Torus(15, 12), callback=stop()).kwargs, :callback)
+    bigsol = solve(pullback(φ, cprob; space=Torus(15, 12), callback=stop()))
+    smallsol = solve(cprob)
+    @test all(t -> bigsol.u[t] == pullback(φ, smallsol.u[t]; space=Torus(15, 12)),
+              eachindex(smallsol.u))
+
     # errors
+    @test_throws ArgumentError forget_layers(traced, :nothing)
+    @test_throws ArgumentError forget_layers(traced, :state, :lineage)
+    blocks = CAModel(BlockRule((b, ctx) -> b); name=:blocks, states=(; x=0))
+    @test_throws ArgumentError quotient(blocks, identity, identity; states=(; x=0))
+    @test_throws ArgumentError is_model_map(ModelMap(blocks, blocks, identity))
     @test_throws DomainMismatchError pushforward(untrace,
                                                  CAProblem(sir, (;), 3;
                                                            space=Torus(4, 4)))

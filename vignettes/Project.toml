@@ -2,9 +2,11 @@
 CategoricalCellularAutomata = "622e49ff-531b-4915-9a6c-e6359157e6de"
 Catlab = "134e5e36-593f-5add-ad60-77f754baafbe"
 CellularAutomataCore = "a487d8a1-ae30-4227-807a-1df2ba951c8b"
+EcologicalCellularAutomata = "a067088d-117e-403c-987b-a1f66e020e3c"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [sources]
 CategoricalCellularAutomata = {path = ".."}
 CellularAutomataCore = {path = "../../CellularAutomataCore.jl"}
+EcologicalCellularAutomata = {path = "../../EcologicalCellularAutomata.jl"}

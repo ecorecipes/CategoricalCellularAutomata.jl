@@ -82,7 +82,7 @@ end
 
 """
     pushforward(f::ModelMap, u)
-    pushforward(f::ModelMap, prob::CAProblem) -> CAProblem
+    pushforward(f::ModelMap, prob::CAProblem; callback) -> CAProblem
 
 The state `u` of a problem of `f`'s domain mapped by `f`, cell by cell: a
 state of its codomain. The second form maps a problem of the domain (built
@@ -92,6 +92,12 @@ initial state, with the mapped parameters and the same seed, time span,
 covariates, mask and solver keywords. When `f` is a map of models
 ([`is_model_map`](@ref)), the solution of the new problem is the original
 solution mapped by `f`, state by state.
+
+A callback stored with `prob` acts on the domain's whole state, and belongs to
+the domain: a problem with one raises `ArgumentError` unless `callback` gives
+the new problem's (`nothing` for none). The map of models then says nothing
+about it, so check the pair by running both with
+[`is_model_map`](@ref).
 
 A problem whose rule is not the domain's raises [`DomainMismatchError`](@ref);
 a mapped initial state outside a state variable's domain raises
@@ -112,7 +118,9 @@ function _retarget(rule, f::ModelMap)
                                      f.dom.rule, rule))
 end
 
-function pushforward(f::ModelMap, prob::CAC.CAProblem)
+function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET)
+    keywords = _moved_keywords(prob, callback,
+                               "pushing a problem forward along a map of models")
     rule = _retarget(prob.rule, f)
     u0 = pushforward(f, prob.u0)
     layers = length(f.codom.states) == 1 ? (u0,) : values(u0)
@@ -130,8 +138,7 @@ function pushforward(f::ModelMap, prob::CAC.CAProblem)
     user = Base.structdiff(prob.field_specs, merge(CAC.fields(prob.rule), f.dom.fields))
     return CAC.CAProblem(rule, u0, prob.tspan, f.parameters(prob.p); space=prob.space,
                          seed=prob.seed, covariates=prob.covariates,
-                         fields=merge(f.codom.fields, user), mask=prob.mask,
-                         prob.kwargs...)
+                         fields=merge(f.codom.fields, user), mask=prob.mask, keywords...)
 end
 
 # The cell values of a model with a finite domain for every state variable.
@@ -161,7 +168,9 @@ function _neighbour_counts(m::CAC.CAModel, space, dims)
 end
 
 """
-    is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts=8, space=nothing, dims=2) -> Bool
+    is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts=8, samples=nothing,
+                 space=nothing, dims=2) -> Bool
+    is_model_map(f::ModelMap, prob::CAProblem; alg=Synchronous(), callback, kwargs...) -> Bool
 
 Whether `f` commutes with the rules of its domain and codomain: for every cell
 state and every list of neighbour states drawn from `cells` (by default every
@@ -178,38 +187,131 @@ The number of neighbours comes from the domain's neighbourhood on a square
 lattice of `dims` dimensions, or on `space` (a `GraphSpace` for a model that
 reads a graph: every degree that occurs is checked). The number of local
 configurations checked must stay below `PATTERN_LIMIT`, or `ArgumentError` is
-raised. Models that read covariates or kernel fields are checked by running
-them instead: compare a solution mapped by `f` with the solution of
-[`pushforward`](@ref pushforward(::ModelMap, ::Any)).
+raised; with `samples` set, that many configurations are drawn at random from
+`cells` for each context instead, which can find a failure but proves nothing.
+
+This form sees only the rules, not what a problem adds to them. The second form
+checks one problem by running it: it solves `prob` and
+[`pushforward(f, prob; callback)`](@ref pushforward(::ModelMap, ::Any)) with the
+scheme `alg` (and `kwargs`, such as `saveat`), and compares every saved state,
+exactly. It is the check for models that read covariates or kernel fields,
+which the first form refuses, and for callbacks and block rules. A `true` holds
+for that problem.
 """
 function is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts::Integer=8,
-                      space=nothing, dims::Integer=2)
+                      samples::Union{Nothing,Integer}=nothing, space=nothing,
+                      dims::Integer=2)
     for m in (f.dom, f.codom)
         isempty(m.covariates) && isempty(m.fields) ||
-            throw(ArgumentError("model $(m.name) reads covariates or kernel fields; check it by running it (pushforward)"))
+            throw(ArgumentError("model $(m.name) reads covariates or kernel fields; check it by running a problem: is_model_map(f, prob)"))
+        m.rule isa Union{CAC.EventRule,CAC.BlockRule} &&
+            throw(ArgumentError("model $(m.name) is not stepped cell by cell; check it by running a problem: is_model_map(f, prob)"))
     end
     vals = cells === nothing ? _domain_values(f.dom) : collect(cells)
     ks = _neighbour_counts(f.dom, space, dims)
-    total = sum(k -> big(length(vals))^(k + 1), ks) * contexts
-    total <= PATTERN_LIMIT ||
-        throw(ArgumentError("checking $f needs $total local configurations, more than PATTERN_LIMIT = $PATTERN_LIMIT"))
+    if samples === nothing
+        total = sum(k -> big(length(vals))^(k + 1), ks) * contexts
+        total <= PATTERN_LIMIT ||
+            throw(ArgumentError("checking $f needs $total local configurations, more than PATTERN_LIMIT = $PATTERN_LIMIT; give `samples` to sample them"))
+    end
     pdom = p === nothing ?
            (isempty(f.dom.parameters) ? CAC.NullParameters() :
             CAC.defaults(f.dom)) : p
     pcod = f.parameters(pdom)
-    mapped = Dict(v => f.h(v) for v in vals)
     for i in 1:contexts, k in ks
         cdom = CAC.CellContext(pdom, CartesianIndex(1, 1), i, i, UInt64(i))
         ccod = CAC.CellContext(pcod, CartesianIndex(1, 1), i, i, UInt64(i))
-        for pattern in Iterators.product(ntuple(_ -> vals, k + 1)...)
+        patterns = samples === nothing ?
+                   Iterators.product(ntuple(_ -> vals, k + 1)...) :
+                   (_sampled_pattern(vals, k, i, s) for s in 1:samples)
+        for pattern in patterns
             cell, nbrs = first(pattern), Base.tail(pattern)
             next = f.h(CAC.local_rule(f.dom.rule, cell, nbrs, cdom))
-            other = CAC.local_rule(f.codom.rule, mapped[cell], map(c -> mapped[c], nbrs),
-                                   ccod)
+            other = CAC.local_rule(f.codom.rule, f.h(cell), map(f.h, nbrs), ccod)
             isequal(next, other) || return false
         end
     end
     return true
+end
+
+# A local configuration drawn from `vals` with the core's counter-based random numbers.
+function _sampled_pattern(vals, k, i, s)
+    ctx = CAC.CellContext(nothing, CartesianIndex(1, 1), s, i, UInt64(0x6d6f64656c))
+    return ntuple(j -> vals[1 + floor(Int, CAC.uniform(ctx, j) * length(vals))], k + 1)
+end
+
+function is_model_map(f::ModelMap, prob::CAC.CAProblem; alg=CAC.Synchronous(),
+                      callback=_UNSET, kwargs...)
+    sol = CAC.solve(prob, alg; kwargs...)
+    other = CAC.solve(pushforward(f, prob; callback), alg; kwargs...)
+    return sol.t == other.t &&
+           all(t -> isequal(pushforward(f, sol.u[t]), other.u[t]), eachindex(sol.u))
+end
+
+# The rule of a quotient: lift the cell and its neighbours, step, and map the result down.
+struct _QuotientRule{R<:CAC.AbstractRule,H,S} <: CAC.AbstractRule
+    rule::R
+    h::H
+    section::S
+end
+@inline function CAC.local_rule(r::_QuotientRule, cell, nbrs, ctx)
+    return r.h(CAC.local_rule(r.rule, r.section(cell), map(r.section, nbrs), ctx))
+end
+CAC.neighbourhood(r::_QuotientRule) = CAC.neighbourhood(r.rule)
+CAC.fields(r::_QuotientRule) = CAC.fields(r.rule)
+Base.show(io::IO, r::_QuotientRule) = print(io, "quotient of ", r.rule)
+
+"""
+    quotient(model, h, section; states, name, description="") -> ModelMap
+
+The map from `model` to its quotient by the map of cell states `h`, a new model
+that needs no rule of its own: `section` lifts a cell state of the quotient to
+one of `model` (`h(section(b)) == b`), and the quotient's rule lifts a cell and
+its neighbours, applies `model`'s rule and maps the result down with `h`. It
+has `states` (as for `CAModel`) and `model`'s parameters, fields and covariates.
+
+The new model is defined for any `h`, but the result is a map of models only if
+the dynamics do not depend on the lift: [`is_model_map`](@ref) is the real test
+of that, and fails when what `h` forgets feeds back. Event rules and block
+rules, which are not stepped cell by cell, raise `ArgumentError`.
+"""
+function quotient(model::CAC.CAModel, h, section; states,
+                  name::Symbol=Symbol(model.name, :_quotient),
+                  description::AbstractString="quotient of $(model.name)")
+    model.rule isa Union{CAC.EventRule,CAC.BlockRule} &&
+        throw(ArgumentError("cannot take a quotient of $(model.name): only rules stepped cell by cell"))
+    rule = _QuotientRule(model.rule, h, section)
+    q = CAC.CAModel(rule; name, states, parameters=model.parameters, fields=model.fields,
+                    covariates=model.covariates, description)
+    return ModelMap(model, q, h, identity)
+end
+
+"""
+    forget_layers(model, layers...; name) -> ModelMap
+
+The [`quotient`](@ref) of `model` that forgets some of its state layers: the
+cell states keep the other layers, and a cell is lifted by giving the forgotten
+layers their defaults. It is a map of models when the forgotten layers do not
+feed back on the ones kept ([`is_model_map`](@ref)): layers that only record,
+such as the time at which a cell was reached, or labels the rule never reads.
+Naming a layer the model does not have, or every layer, raises `ArgumentError`.
+"""
+function forget_layers(model::CAC.CAModel, layers::Symbol...;
+                       name::Symbol=Symbol(model.name, :_without_, join(layers, :_)))
+    names = _names(model)
+    for l in layers
+        l in names ||
+            throw(ArgumentError("model $(model.name) has no state $l; states are $names"))
+    end
+    kept = Tuple(n for n in names if n ∉ layers)
+    isempty(kept) &&
+        throw(ArgumentError("forgetting $layers would leave $(model.name) no layers"))
+    full = NamedTuple{names}(Tuple(s.default for s in model.states))
+    h = length(kept) == 1 ? (c -> getfield(c, only(kept))) : (c -> NamedTuple{kept}(c))
+    section = length(kept) == 1 ? (b -> merge(full, NamedTuple{kept}((b,)))) :
+              (b -> merge(full, b))
+    states = [s for s in model.states if s.name in kept]
+    return quotient(model, h, section; states, name)
 end
 
 const _Model = CAC.CAModel

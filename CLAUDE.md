@@ -50,7 +50,13 @@ the `references.bib` files here are synced copies.
   domains, or `cells`) at several contexts; `pushforward(f, prob)` keeps seed, space, covariates and mask and
   passes through `pullback`s along maps of spaces. Models and maps are an `@instance ThCategory{CAModel,
   ModelMap}` (objects compared with `===`). Tests compare mapped runs with the codomain's runs exactly, and
-  include maps that must fail (a label that feeds back, a composite without shared random numbers).
+  include maps that must fail (a label that feeds back, a composite without shared random numbers). A
+  callback acts on the whole state and is not moved by a map: `pushforward` and `pullback` of a problem with a
+  callback raise `ArgumentError` unless `callback=` names the new problem's, and `is_model_map(f, prob)` is the
+  check that includes it. The local check sees only rules. `quotient` and `forget_layers` build a codomain from
+  the domain's own rule, so nothing is written twice, and never assume the result is a map: check it.
+- This package does not depend on EcologicalCellularAutomata. Only the vignette environment does (vignette
+  14 uses published models); the test suite does not, and `vignettes.yml` checks the zoo out.
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with
   discrete feet. `glue` computes colimits by union-find (feet are cells, so slots are never identified);
   `algorithm=:catlab` uses Catlab's `oapply` and the tests check the two agree. Glued landscapes are tested
@@ -85,7 +91,7 @@ the `references.bib` files here are synced copies.
   `oapply` for core `CAModel`s over undirected wiring diagrams, on square or hexagonal lattices and graphs)
   and `src/spaces.jl` (`NeighbourhoodSpace` from any core space, `SpaceMorphism`, `pullback`, `covering`,
   `reflection_fold`, `cayley_space`) and `src/gluing.jl` (`SlotGraph`, `lattice_patch`, `glue`) and `src/model_maps.jl` (`ModelMap`,
-  `is_model_map`, `pushforward` of states and problems, the category of models).
+  `is_model_map`, `pushforward` of states and problems, `quotient`, `forget_layers`, the category of models).
 - `test/runtests.jl`, `test/test_groups.jl`, `test/test_cartesian.jl` (category and product laws with random
   lookup-table rules), `test/test_chl_bridge.jl`, `test/test_generalized.jl` (homomorphisms, free
   products, generalised, linear and monotone automata), `test/test_markov.jl` (the research
