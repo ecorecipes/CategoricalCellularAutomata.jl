@@ -144,6 +144,16 @@ forget_layers
 compose(::ModelMap, ::ModelMap)
 ```
 
+Maps that read a window around each cell, the sliding block codes of symbolic dynamics.
+
+```@docs
+SlidingBlockMap
+is_model_map(::SlidingBlockMap)
+pushforward(::SlidingBlockMap, ::Any, ::CellularAutomataCore.AbstractSpace)
+compose(::SlidingBlockMap, ::SlidingBlockMap)
+CellularAutomaton(::SlidingBlockMap, ::CellularAutomataCore.Lattice)
+```
+
 ## The Curtis–Hedlund–Lyndon theorem
 
 ```@docs

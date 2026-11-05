@@ -134,7 +134,7 @@ function pushforward(f::ModelMap, u)
 end
 
 # The codomain's rule in place of the domain's, inside any pullbacks along maps of spaces.
-function _retarget(rule, f::ModelMap)
+function _retarget(rule, f)
     rule === f.dom.rule && return f.codom.rule
     rule isa _PulledBackRule &&
         return _PulledBackRule(_retarget(rule.rule, f), rule.map, rule.order)
@@ -142,18 +142,37 @@ function _retarget(rule, f::ModelMap)
                                      f.dom.rule, rule))
 end
 
-# The state of the codomain from the domain's, checked against its state variables' domains.
-function _mapped_initial_state(f::ModelMap, prob::CAC.CAProblem)
-    u0 = pushforward(f, prob.u0)
-    layers = length(f.codom.states) == 1 ? (u0,) : values(u0)
-    for (s, a) in zip(f.codom.states, layers)
+# A state of `m`, checked against its state variables' domains.
+function _check_state_domains(m::CAC.CAModel, u)
+    layers = length(m.states) == 1 ? (u,) : values(u)
+    for (s, a) in zip(m.states, layers)
         s.domain === nothing && continue
         i = findfirst(x -> !(x in s.domain), a)
         i === nothing ||
-            throw(CAC.InvalidStateError("model $(f.codom.name)", i, a[i],
+            throw(CAC.InvalidStateError("model $(m.name)", i, a[i],
                                         "state $(s.name) must lie in $(s.domain)"))
     end
+    return nothing
+end
+
+# The state of the codomain from the domain's, checked.
+function _mapped_initial_state(f::ModelMap, prob::CAC.CAProblem)
+    u0 = pushforward(f, prob.u0)
+    _check_state_domains(f.codom, u0)
     return u0
+end
+
+# The problem of the codomain with `rule` from `u0`: everything else as in `prob`, parameters mapped.
+function _pushed_problem(f, prob::CAC.CAProblem, rule, u0, keywords, section)
+    for c in f.codom.covariates
+        haskey(prob.covariates, c) ||
+            throw(ArgumentError("model $(f.codom.name) needs covariate $c, which the problem does not have"))
+    end
+    user = Base.structdiff(prob.field_specs, merge(CAC.fields(prob.rule), f.dom.fields))
+    section === nothing || (user = map(k -> _lift_field(k, section), user))
+    return CAC.CAProblem(rule, u0, prob.tspan, f.parameters(prob.p); space=prob.space,
+                         seed=prob.seed, covariates=prob.covariates,
+                         fields=merge(f.codom.fields, user), mask=prob.mask, keywords...)
 end
 
 function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET, alg=nothing)
@@ -165,16 +184,8 @@ function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET, alg=noth
     keywords = _moved_keywords(prob, callback,
                                "pushing a problem forward along a map of models")
     rule = _retarget(prob.rule, f)
-    u0 = _mapped_initial_state(f, prob)
-    for c in f.codom.covariates
-        haskey(prob.covariates, c) ||
-            throw(ArgumentError("model $(f.codom.name) needs covariate $c, which the problem does not have"))
-    end
-    user = Base.structdiff(prob.field_specs, merge(CAC.fields(prob.rule), f.dom.fields))
-    f.section === nothing || (user = map(k -> _lift_field(k, f.section), user))
-    return CAC.CAProblem(rule, u0, prob.tspan, f.parameters(prob.p); space=prob.space,
-                         seed=prob.seed, covariates=prob.covariates,
-                         fields=merge(f.codom.fields, user), mask=prob.mask, keywords...)
+    return _pushed_problem(f, prob, rule, _mapped_initial_state(f, prob), keywords,
+                           f.section)
 end
 
 # The cell values of a model with a finite domain for every state variable.

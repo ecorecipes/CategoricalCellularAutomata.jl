@@ -134,6 +134,14 @@ models, with and without callbacks</a>
 <ul>
 <li><a href="#block-rules" id="toc-block-rules">Block rules</a></li>
 </ul></li>
+<li><a href="#maps-between-models-that-read-neighbours"
+id="toc-maps-between-models-that-read-neighbours">Maps between models
+that read neighbours</a>
+<ul>
+<li><a href="#examples-on-a-ring" id="toc-examples-on-a-ring">Examples
+on a ring</a></li>
+<li><a href="#factors" id="toc-factors">Factors</a></li>
+</ul></li>
 </ul>
 </nav>
 <!-- CategoricalCellularAutomataProofs/Basic.lean -->
@@ -358,6 +366,37 @@ quotient runs every run of the original, mapped down</td>
 <td><code>is_model_map(f, prob)</code></td>
 <td>what a run can show: without feedback, erasing what is forgotten
 changes nothing kept, so a difference disproves the map</td>
+</tr>
+<tr>
+<td><code>SlidingMap</code>, <code>SlidingMap.run_map</code></td>
+<td><code>SlidingBlockMap</code>, <code>pushforward</code>,
+<code>is_model_map</code></td>
+<td>maps that read a window around each cell send runs to runs</td>
+</tr>
+<tr>
+<td><code>instCategorySlidingModels</code>,
+<code>ModelMap.slidingFunctor</code>,
+<code>kinkMap126_not_cellwise</code></td>
+<td><code>compose</code> of <code>SlidingBlockMap</code>s and
+<code>ModelMap</code>s</td>
+<td>they form a category holding the cell-by-cell maps as a subcategory,
+and it is larger</td>
+</tr>
+<tr>
+<td><code>kinkMap126</code>, <code>wallsMap</code>,
+<code>walls_need_other_coins</code></td>
+<td>vignette 15, <code>Maps that read neighbours</code></td>
+<td>the boundaries of rule 126 are rule 18; the boundaries of a voter
+model move on the coins of two cells, whichever coins are drawn, and
+cannot on one</td>
+</tr>
+<tr>
+<td><code>factor_exists_iff</code>, <code>factor_unique</code>,
+<code>factor_isCA</code></td>
+<td>the search over elementary rules in the tests</td>
+<td>through a surjective cellular automaton, a factor exists exactly
+when the rule respects the fibres, and is a unique cellular
+automaton</td>
 </tr>
 </tbody>
 </table>
@@ -1700,5 +1739,268 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb21-1"><a href=
 <span id="cb21-92"><a href="#cb21-92" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> BlockLumping</span>
 <span id="cb21-93"><a href="#cb21-93" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb21-94"><a href="#cb21-94" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/Sliding.lean -->
+<h1 id="maps-between-models-that-read-neighbours">Maps between models
+that read neighbours</h1>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Models</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.CurtisHedlundLyndon</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.ZMod.Basic</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Tactic.LinearCombination</span></code></pre></div>
+<p>A <code>ModelMap</code> sends the state of a cell to a state. A
+sliding map reads a finite window around the cell, so it can see what
+lies between cells, such as a boundary between two regions. Here it is a
+map of configurations <code>Φ</code> whose value at a cell depends only
+on the configuration on a finite window of that cell, and it is a map of
+models when it commutes with the steps of the two models. On a lattice
+these are the sliding block codes of symbolic dynamics, the package’s
+<code>SlidingBlockMap</code>.</p>
+<p>A sliding map sends every run to a run
+(<code>SlidingMap.run_map</code>). The windows of a composite are found
+by reading each window through the other, so sliding maps form a
+category (<code>SlidingModels</code>), and cell-by-cell maps are a
+subcategory (<code>ModelMap.slidingFunctor</code>) that misses some of
+them (<code>kinkMap126_not_cellwise</code>).</p>
+<p>A rule is a family <code>μ t c</code> in the time and the cell, so
+counter-based random numbers are covered. A rule of the codomain may
+depend on the numbers of cells other than its own, as it must when the
+window holds several cells: in <code>wallsMap</code>, the boundaries of
+a voter model move on the coins of the two cells beside them, whichever
+coins are drawn.</p>
+<p>Over a group, a surjective cellular automaton <code>Φ</code> has a
+cellular automaton <code>F'</code> with <code>F' ∘ Φ = Φ ∘ F</code>
+exactly when <code>F</code> respects the fibres of <code>Φ</code>, and
+then <code>F'</code> is unique (<code>factor_exists_iff</code>,
+<code>factor_unique</code>, <code>factor_isCA</code>); over a finite
+group that follows from the Curtis–Hedlund–Lyndon theorem.</p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="kw">open</span> CategoryTheory</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {X : <span class="kw">Type</span> u}</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of models that reads a window: a map of configurations, each of whose values depends only</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="do">on the configuration on a finite window of the cell, commuting with the steps of the two models. -/</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="at">@[ext]</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> SlidingMap (nbrs : X → List X) (M N : CAModel X) <span class="kw">where</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the map of configurations -/</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  Φ : (X → M.A) → X → N.A</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- each value reads a finite window -/</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>  reads : ∃ w : X → List X, ∀ c x y, (∀ d ∈ w c, x d = y d) → Φ x c = Φ y c</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- one step followed by the map is the map followed by one step -/</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>  comm : ∀ t x, Φ (step nbrs (M.μ t) x) = step nbrs (N.μ t) (Φ x)</span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {nbrs : X → List X}</span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Sliding maps send runs to runs.** The run of the codomain from the mapped initial state is,</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a><span class="do">at every step, the run of the domain mapped. -/</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> SlidingMap.run_map {M N : CAModel X} (f : SlidingMap nbrs M N) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>    run nbrs N.μ (f.Φ x) n = f.Φ (run nbrs M.μ x n) := <span class="kw">by</span></span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">rfl</span></span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt; <span class="cf">simp</span> only [run, ih, f.comm]</span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The identity reads the cell alone. -/</span></span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SlidingMap.id (M : CAModel X) : SlidingMap nbrs M M <span class="kw">where</span></span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a>  Φ x := x</span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a>  reads := ⟨fun c =&gt; [c], <span class="kw">fun</span> c x y e =&gt; e c (<span class="kw">by</span> <span class="cf">simp</span>)⟩</span>
+<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>  comm _ _ := <span class="cf">rfl</span></span>
+<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A sliding map followed by another reads each window of the second through the first. -/</span></span>
+<span id="cb23-37"><a href="#cb23-37" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SlidingMap.comp {M N P : CAModel X} (f : SlidingMap nbrs M N) (g : SlidingMap nbrs N P) :</span>
+<span id="cb23-38"><a href="#cb23-38" aria-hidden="true" tabindex="-1"></a>    SlidingMap nbrs M P <span class="kw">where</span></span>
+<span id="cb23-39"><a href="#cb23-39" aria-hidden="true" tabindex="-1"></a>  Φ x := g.Φ (f.Φ x)</span>
+<span id="cb23-40"><a href="#cb23-40" aria-hidden="true" tabindex="-1"></a>  reads := <span class="kw">by</span></span>
+<span id="cb23-41"><a href="#cb23-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">obtain</span> ⟨wf, hf⟩ := f.reads</span>
+<span id="cb23-42"><a href="#cb23-42" aria-hidden="true" tabindex="-1"></a>    <span class="cf">obtain</span> ⟨wg, hg⟩ := g.reads</span>
+<span id="cb23-43"><a href="#cb23-43" aria-hidden="true" tabindex="-1"></a>    <span class="cf">refine</span> ⟨fun c =&gt; (wg c).flatMap wf, <span class="kw">fun</span> c x y e =&gt; hg c _ _ <span class="kw">fun</span> d hd =&gt; hf d x y <span class="kw">fun</span> b hb =&gt; ?_⟩</span>
+<span id="cb23-44"><a href="#cb23-44" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> e b (List.mem_flatMap.mpr ⟨d, hd, hb⟩)</span>
+<span id="cb23-45"><a href="#cb23-45" aria-hidden="true" tabindex="-1"></a>  comm t x := <span class="kw">by</span> <span class="cf">rw</span> [f.comm, g.comm]</span>
+<span id="cb23-46"><a href="#cb23-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-47"><a href="#cb23-47" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The models on a space with its neighbours, for the category of sliding maps. -/</span></span>
+<span id="cb23-48"><a href="#cb23-48" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> SlidingModels (nbrs : X → List X) <span class="kw">where</span></span>
+<span id="cb23-49"><a href="#cb23-49" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the model -/</span></span>
+<span id="cb23-50"><a href="#cb23-50" aria-hidden="true" tabindex="-1"></a>  model : CAModel X</span>
+<span id="cb23-51"><a href="#cb23-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-52"><a href="#cb23-52" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Models and the sliding maps between them form a category.** -/</span></span>
+<span id="cb23-53"><a href="#cb23-53" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> instCategorySlidingModels : Category.{u} (SlidingModels nbrs) <span class="kw">where</span></span>
+<span id="cb23-54"><a href="#cb23-54" aria-hidden="true" tabindex="-1"></a>  Hom M N := SlidingMap nbrs M.model N.model</span>
+<span id="cb23-55"><a href="#cb23-55" aria-hidden="true" tabindex="-1"></a>  id M := SlidingMap.id M.model</span>
+<span id="cb23-56"><a href="#cb23-56" aria-hidden="true" tabindex="-1"></a>  comp f g := SlidingMap.comp f g</span>
+<span id="cb23-57"><a href="#cb23-57" aria-hidden="true" tabindex="-1"></a>  id_comp _ := <span class="cf">rfl</span></span>
+<span id="cb23-58"><a href="#cb23-58" aria-hidden="true" tabindex="-1"></a>  comp_id _ := <span class="cf">rfl</span></span>
+<span id="cb23-59"><a href="#cb23-59" aria-hidden="true" tabindex="-1"></a>  assoc _ _ _ := <span class="cf">rfl</span></span>
+<span id="cb23-60"><a href="#cb23-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-61"><a href="#cb23-61" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of cell states is a sliding map, with a window of the cell alone. -/</span></span>
+<span id="cb23-62"><a href="#cb23-62" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ModelMap.toSliding {M N : CAModel X} (f : ModelMap M N) : SlidingMap nbrs M N <span class="kw">where</span></span>
+<span id="cb23-63"><a href="#cb23-63" aria-hidden="true" tabindex="-1"></a>  Φ x := f.h ∘ x</span>
+<span id="cb23-64"><a href="#cb23-64" aria-hidden="true" tabindex="-1"></a>  reads := ⟨fun c =&gt; [c], <span class="kw">fun</span> c x y e =&gt; <span class="kw">by</span> <span class="cf">simp</span> [e c (<span class="kw">by</span> <span class="cf">simp</span>)]⟩</span>
+<span id="cb23-65"><a href="#cb23-65" aria-hidden="true" tabindex="-1"></a>  comm t x := (f.step_map t x).symm</span>
+<span id="cb23-66"><a href="#cb23-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-67"><a href="#cb23-67" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Cell-by-cell maps are a subcategory of sliding maps.** -/</span></span>
+<span id="cb23-68"><a href="#cb23-68" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ModelMap.slidingFunctor : CAModel X ⥤ SlidingModels nbrs <span class="kw">where</span></span>
+<span id="cb23-69"><a href="#cb23-69" aria-hidden="true" tabindex="-1"></a>  obj M := ⟨M⟩</span>
+<span id="cb23-70"><a href="#cb23-70" aria-hidden="true" tabindex="-1"></a>  map f := ModelMap.toSliding f</span>
+<span id="cb23-71"><a href="#cb23-71" aria-hidden="true" tabindex="-1"></a>  map_id _ := <span class="cf">rfl</span></span>
+<span id="cb23-72"><a href="#cb23-72" aria-hidden="true" tabindex="-1"></a>  map_comp _ _ := <span class="cf">rfl</span></span>
+<span id="cb23-73"><a href="#cb23-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-74"><a href="#cb23-74" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Over a nonempty space, different maps of cell states are different sliding maps. -/</span></span>
+<span id="cb23-75"><a href="#cb23-75" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> ModelMap.toSliding_injective [Nonempty X] {M N : CAModel X} {f g : ModelMap M N}</span>
+<span id="cb23-76"><a href="#cb23-76" aria-hidden="true" tabindex="-1"></a>    (e : (ModelMap.toSliding f : SlidingMap nbrs M N) = ModelMap.toSliding g) : f = g := <span class="kw">by</span></span>
+<span id="cb23-77"><a href="#cb23-77" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨c⟩ := ‹Nonempty X›</span>
+<span id="cb23-78"><a href="#cb23-78" aria-hidden="true" tabindex="-1"></a>  <span class="cf">ext</span> a</span>
+<span id="cb23-79"><a href="#cb23-79" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> := congrArg (<span class="kw">fun</span> F : SlidingMap nbrs M N =&gt; F.Φ (<span class="kw">fun</span> _ =&gt; a) c) e</span>
+<span id="cb23-80"><a href="#cb23-80" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> this</span></code></pre></div>
+<h2 id="examples-on-a-ring">Examples on a ring</h2>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> Ring</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> (n : ℕ)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A ring of cells, each reading the cell before it, itself and the cell after it. -/</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ringNbrs : ZMod n → List (ZMod n) := <span class="kw">fun</span> c =&gt; [c - <span class="dv">1</span>, c, c + <span class="dv">1</span>]</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="do">/-- An elementary cellular automaton on the ring, whose rule may depend on the time and cell. -/</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ringModel (r : ℕ → ZMod n → Bool → Bool → Bool → Bool) : CAModel (ZMod n) <span class="kw">where</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>  A := Bool</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>  μ t c l := <span class="kw">match</span> l <span class="kw">with</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>    | [a, b, d] =&gt; r t c a b d</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>    | _ =&gt; false</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {n}</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Whether a boundary lies between a cell and the next. -/</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kink (x : ZMod n → Bool) (c : ZMod n) : Bool := xor (x c) (x (c + <span class="dv">1</span>))</span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> kink_reads : ∃ w : ZMod n → List (ZMod n), ∀ c x y, (∀ d ∈ w c, x d = y d) →</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>    kink x c = kink y c :=</span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>  ⟨fun c =&gt; [c, c + <span class="dv">1</span>], <span class="kw">fun</span> c x y e =&gt; <span class="kw">by</span> <span class="cf">simp</span> [kink, e c (<span class="kw">by</span> <span class="cf">simp</span>), e (c + <span class="dv">1</span>) (<span class="kw">by</span> <span class="cf">simp</span>)]⟩</span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Elementary rule 126: a cell is on unless it and its neighbours agree. -/</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rule126 (_ : ℕ) (_ : ZMod n) (a b d : Bool) : Bool := !(a == b &amp;&amp; b == d)</span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Elementary rule 18: a cell that is off turns on when exactly one neighbour is on. -/</span></span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> rule18 (_ : ℕ) (_ : ZMod n) (a b d : Bool) : Bool := !b &amp;&amp; xor a d</span>
+<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The boundaries of rule 126 are rule 18.** -/</span></span>
+<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> kinkMap126 : SlidingMap (ringNbrs n) (ringModel n rule126) (ringModel n rule18) <span class="kw">where</span></span>
+<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a>  Φ := kink</span>
+<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>  reads := kink_reads</span>
+<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>  comm t x := <span class="kw">by</span></span>
+<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> c</span>
+<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> only [step, ringNbrs, ringModel, List.map, kink, rule126, rule18, sub_add_cancel,</span>
+<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a>      add_sub_cancel_right]</span>
+<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">cases</span> x (c - <span class="dv">1</span>) &lt;;&gt; <span class="cf">cases</span> x c &lt;;&gt; <span class="cf">cases</span> x (c + <span class="dv">1</span>) &lt;;&gt; <span class="cf">cases</span> x (c + <span class="dv">1</span> + <span class="dv">1</span>) &lt;;&gt; <span class="cf">rfl</span></span>
+<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **A sliding map need not be cell by cell.** Two cells in the same state can have different</span></span>
+<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a><span class="do">boundaries beside them. -/</span></span>
+<span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> kinkMap126_not_cellwise [Fact (<span class="dv">1</span> &lt; n)] :</span>
+<span id="cb24-43"><a href="#cb24-43" aria-hidden="true" tabindex="-1"></a>    ¬ ∃ h : Bool → Bool, ∀ (x : ZMod n → Bool) c, (kinkMap126 (n := n)).Φ x c = h (x c) := <span class="kw">by</span></span>
+<span id="cb24-44"><a href="#cb24-44" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rintro</span> ⟨h, hh⟩</span>
+<span id="cb24-45"><a href="#cb24-45" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> zero := hh (<span class="kw">fun</span> _ =&gt; false) <span class="dv">0</span></span>
+<span id="cb24-46"><a href="#cb24-46" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> one := hh (<span class="kw">fun</span> c =&gt; <span class="cf">decide</span> (c = <span class="dv">1</span>)) <span class="dv">0</span></span>
+<span id="cb24-47"><a href="#cb24-47" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> ne : (<span class="dv">0</span> : ZMod n) ≠ <span class="dv">1</span> := zero_ne_one</span>
+<span id="cb24-48"><a href="#cb24-48" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> [kinkMap126, kink, ne] <span class="kw">at</span> zero one</span>
+<span id="cb24-49"><a href="#cb24-49" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [← zero] <span class="kw">at</span> one</span>
+<span id="cb24-50"><a href="#cb24-50" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> Bool.noConfusion one</span>
+<span id="cb24-51"><a href="#cb24-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-52"><a href="#cb24-52" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A voter model with any field of coins: a cell copies the cell before it on `true` and the cell</span></span>
+<span id="cb24-53"><a href="#cb24-53" aria-hidden="true" tabindex="-1"></a><span class="do">after it on `false`. A random draw at each cell and step is such a field. -/</span></span>
+<span id="cb24-54"><a href="#cb24-54" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> voterRule (coin : ℕ → ZMod n → Bool) (t : ℕ) (c : ZMod n) (a _ d : Bool) : Bool :=</span>
+<span id="cb24-55"><a href="#cb24-55" aria-hidden="true" tabindex="-1"></a>  <span class="kw">if</span> coin t c <span class="kw">then</span> a <span class="kw">else</span> d</span>
+<span id="cb24-56"><a href="#cb24-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-57"><a href="#cb24-57" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The boundaries of the voter model, moved by the coins of the cells on either side. -/</span></span>
+<span id="cb24-58"><a href="#cb24-58" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wallRule (coin : ℕ → ZMod n → Bool) (t : ℕ) (c : ZMod n) (a b d : Bool) : Bool :=</span>
+<span id="cb24-59"><a href="#cb24-59" aria-hidden="true" tabindex="-1"></a>  <span class="kw">match</span> coin t c, coin t (c + <span class="dv">1</span>) <span class="kw">with</span></span>
+<span id="cb24-60"><a href="#cb24-60" aria-hidden="true" tabindex="-1"></a>  | true, true =&gt; a</span>
+<span id="cb24-61"><a href="#cb24-61" aria-hidden="true" tabindex="-1"></a>  | false, false =&gt; d</span>
+<span id="cb24-62"><a href="#cb24-62" aria-hidden="true" tabindex="-1"></a>  | true, false =&gt; xor (xor a b) d</span>
+<span id="cb24-63"><a href="#cb24-63" aria-hidden="true" tabindex="-1"></a>  | false, true =&gt; b</span>
+<span id="cb24-64"><a href="#cb24-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-65"><a href="#cb24-65" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The boundaries between two species that compete by copying move on the coins of the two cells</span></span>
+<span id="cb24-66"><a href="#cb24-66" aria-hidden="true" tabindex="-1"></a><span class="do">beside them**, on every path, whichever coins are drawn. By `walls_need_other_coins`, no rule that</span></span>
+<span id="cb24-67"><a href="#cb24-67" aria-hidden="true" tabindex="-1"></a><span class="do">reads only its own cell&#39;s coin could do this. -/</span></span>
+<span id="cb24-68"><a href="#cb24-68" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> wallsMap (coin : ℕ → ZMod n → Bool) :</span>
+<span id="cb24-69"><a href="#cb24-69" aria-hidden="true" tabindex="-1"></a>    SlidingMap (ringNbrs n) (ringModel n (voterRule coin)) (ringModel n (wallRule coin)) <span class="kw">where</span></span>
+<span id="cb24-70"><a href="#cb24-70" aria-hidden="true" tabindex="-1"></a>  Φ := kink</span>
+<span id="cb24-71"><a href="#cb24-71" aria-hidden="true" tabindex="-1"></a>  reads := kink_reads</span>
+<span id="cb24-72"><a href="#cb24-72" aria-hidden="true" tabindex="-1"></a>  comm t x := <span class="kw">by</span></span>
+<span id="cb24-73"><a href="#cb24-73" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> c</span>
+<span id="cb24-74"><a href="#cb24-74" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> only [step, ringNbrs, ringModel, List.map, kink, voterRule, wallRule, sub_add_cancel,</span>
+<span id="cb24-75"><a href="#cb24-75" aria-hidden="true" tabindex="-1"></a>      add_sub_cancel_right]</span>
+<span id="cb24-76"><a href="#cb24-76" aria-hidden="true" tabindex="-1"></a>    <span class="cf">cases</span> coin t c &lt;;&gt; <span class="cf">cases</span> coin t (c + <span class="dv">1</span>) &lt;;&gt; <span class="cf">cases</span> x (c - <span class="dv">1</span>) &lt;;&gt; <span class="cf">cases</span> x c &lt;;&gt;</span>
+<span id="cb24-77"><a href="#cb24-77" aria-hidden="true" tabindex="-1"></a>      <span class="cf">cases</span> x (c + <span class="dv">1</span>) &lt;;&gt; <span class="cf">cases</span> x (c + <span class="dv">1</span> + <span class="dv">1</span>) &lt;;&gt; <span class="cf">rfl</span></span>
+<span id="cb24-78"><a href="#cb24-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-79"><a href="#cb24-79" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **A map that reads a window needs the random numbers of the window.** No rule of the boundaries</span></span>
+<span id="cb24-80"><a href="#cb24-80" aria-hidden="true" tabindex="-1"></a><span class="do">that reads the three boundaries around a cell and only that cell&#39;s coin gives their next state: on</span></span>
+<span id="cb24-81"><a href="#cb24-81" aria-hidden="true" tabindex="-1"></a><span class="do">a ring of at least four cells, the next boundary also depends on the coin of the next cell. -/</span></span>
+<span id="cb24-82"><a href="#cb24-82" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> walls_need_other_coins [hn : Fact (<span class="dv">3</span> &lt; n)] :</span>
+<span id="cb24-83"><a href="#cb24-83" aria-hidden="true" tabindex="-1"></a>    ¬ ∃ r : ZMod n → Bool → Bool → Bool → Bool → Bool,</span>
+<span id="cb24-84"><a href="#cb24-84" aria-hidden="true" tabindex="-1"></a>      ∀ (coin : ℕ → ZMod n → Bool) (x : ZMod n → Bool) (c : ZMod n),</span>
+<span id="cb24-85"><a href="#cb24-85" aria-hidden="true" tabindex="-1"></a>        kink (step (ringNbrs n) ((ringModel n (voterRule coin)).μ <span class="dv">0</span>) x) c =</span>
+<span id="cb24-86"><a href="#cb24-86" aria-hidden="true" tabindex="-1"></a>          r c (coin <span class="dv">0</span> c) (kink x (c - <span class="dv">1</span>)) (kink x c) (kink x (c + <span class="dv">1</span>)) := <span class="kw">by</span></span>
+<span id="cb24-87"><a href="#cb24-87" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rintro</span> ⟨r, hr⟩</span>
+<span id="cb24-88"><a href="#cb24-88" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> nonzero : ∀ k : ℕ, <span class="dv">0</span> &lt; k → k ≤ <span class="dv">3</span> → (k : ZMod n) ≠ <span class="dv">0</span> := <span class="kw">fun</span> k k0 k3 e =&gt; <span class="kw">by</span></span>
+<span id="cb24-89"><a href="#cb24-89" aria-hidden="true" tabindex="-1"></a>    <span class="kw">have</span> := (ZMod.natCast_eq_zero_iff k n).mp e</span>
+<span id="cb24-90"><a href="#cb24-90" aria-hidden="true" tabindex="-1"></a>    <span class="kw">have</span> := Nat.le_of_dvd k0 this</span>
+<span id="cb24-91"><a href="#cb24-91" aria-hidden="true" tabindex="-1"></a>    <span class="kw">have</span> := hn.out</span>
+<span id="cb24-92"><a href="#cb24-92" aria-hidden="true" tabindex="-1"></a>    <span class="cf">omega</span></span>
+<span id="cb24-93"><a href="#cb24-93" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> one : (<span class="dv">1</span> : ZMod n) ≠ <span class="dv">0</span> := <span class="kw">by</span> <span class="cf">simpa</span> <span class="kw">using</span> nonzero <span class="dv">1</span> (<span class="kw">by</span> <span class="cf">omega</span>) (<span class="kw">by</span> <span class="cf">omega</span>)</span>
+<span id="cb24-94"><a href="#cb24-94" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> two : (<span class="dv">2</span> : ZMod n) ≠ <span class="dv">0</span> := <span class="kw">by</span> <span class="cf">simpa</span> <span class="kw">using</span> nonzero <span class="dv">2</span> (<span class="kw">by</span> <span class="cf">omega</span>) (<span class="kw">by</span> <span class="cf">omega</span>)</span>
+<span id="cb24-95"><a href="#cb24-95" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> three : (<span class="dv">3</span> : ZMod n) ≠ <span class="dv">0</span> := <span class="kw">by</span> <span class="cf">simpa</span> <span class="kw">using</span> nonzero <span class="dv">3</span> (<span class="kw">by</span> <span class="cf">omega</span>) (<span class="kw">by</span> <span class="cf">omega</span>)</span>
+<span id="cb24-96"><a href="#cb24-96" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> m1 : (-<span class="dv">1</span> : ZMod n) ≠ <span class="dv">1</span> := <span class="kw">fun</span> e =&gt; two (<span class="kw">by</span> linear_combination -e)</span>
+<span id="cb24-97"><a href="#cb24-97" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> m2 : (-<span class="dv">1</span> : ZMod n) ≠ <span class="dv">2</span> := <span class="kw">fun</span> e =&gt; three (<span class="kw">by</span> linear_combination -e)</span>
+<span id="cb24-98"><a href="#cb24-98" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> n12 : (<span class="dv">1</span> : ZMod n) ≠ <span class="dv">2</span> := <span class="kw">fun</span> e =&gt; one (<span class="kw">by</span> linear_combination -e)</span>
+<span id="cb24-99"><a href="#cb24-99" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> x : ZMod n → Bool := <span class="kw">fun</span> c =&gt; <span class="cf">decide</span> (c = <span class="dv">1</span>) || <span class="cf">decide</span> (c = <span class="dv">2</span>)</span>
+<span id="cb24-100"><a href="#cb24-100" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> both := hr (<span class="kw">fun</span> _ d =&gt; <span class="cf">decide</span> (d = <span class="dv">0</span>) || <span class="cf">decide</span> (d = <span class="dv">1</span>)) x <span class="dv">0</span></span>
+<span id="cb24-101"><a href="#cb24-101" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> only := hr (<span class="kw">fun</span> _ d =&gt; <span class="cf">decide</span> (d = <span class="dv">0</span>)) x <span class="dv">0</span></span>
+<span id="cb24-102"><a href="#cb24-102" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> hx : ∀ c, x c = (<span class="cf">decide</span> (c = <span class="dv">1</span>) || <span class="cf">decide</span> (c = <span class="dv">2</span>)) := <span class="kw">fun</span> _ =&gt; <span class="cf">rfl</span></span>
+<span id="cb24-103"><a href="#cb24-103" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> [step, ringNbrs, ringModel, voterRule, kink, hx, one, one.symm, two.symm, m1, m2, n12,</span>
+<span id="cb24-104"><a href="#cb24-104" aria-hidden="true" tabindex="-1"></a>    n12.symm, one_add_one_eq_two, zero_sub] <span class="kw">at</span> both only</span>
+<span id="cb24-105"><a href="#cb24-105" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [both] <span class="kw">at</span> only</span>
+<span id="cb24-106"><a href="#cb24-106" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> <span class="kw">at</span> only</span>
+<span id="cb24-107"><a href="#cb24-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-108"><a href="#cb24-108" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Ring</span></code></pre></div>
+<h2 id="factors">Factors</h2>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> Factor</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {S T : <span class="kw">Type</span>*}</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map through a surjection exists exactly when the map respects its fibres. -/</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> factor_exists_iff {Φ : S → T} (hs : Function.Surjective Φ) (F : S → S) :</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    (∃ F&#39; : T → T, ∀ x, F&#39; (Φ x) = Φ (F x)) ↔ ∀ x y, Φ x = Φ y → Φ (F x) = Φ (F y) := <span class="kw">by</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">rintro</span> ⟨F&#39;, h⟩ x y e</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [← h, ← h, e]</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> h</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">choose</span> s hs <span class="kw">using</span> hs</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">refine</span> ⟨fun y =&gt; Φ (F (s y)), <span class="kw">fun</span> x =&gt; h _ _ (hs _)⟩</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map through a surjection is unique. -/</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> factor_unique {Φ : S → T} (hs : Function.Surjective Φ) {F : S → S} {F₁ F₂ : T → T}</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    (h₁ : ∀ x, F₁ (Φ x) = Φ (F x)) (h₂ : ∀ x, F₂ (Φ x) = Φ (F x)) : F₁ = F₂ := <span class="kw">by</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> y</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨x, rfl⟩ := hs y</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [h₁, h₂]</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {G : <span class="kw">Type</span> u} [Group G] {A B : <span class="kw">Type</span> u}</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The factor of a cellular automaton by a surjective one is a cellular automaton**, over a finite</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a><span class="do">group: a map on the codomain that commutes with both commutes with the shifts. -/</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> factor_isCA [Finite G] {Φ : Config G A → Config G B} (hΦ : IsCA G Φ)</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>    (hs : Function.Surjective Φ) {F : Config G A → Config G A} (hF : IsCA G F)</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>    {F&#39; : Config G B → Config G B} (h : ∀ x, F&#39; (Φ x) = Φ (F x)) : IsCA G F&#39; := <span class="kw">by</span></span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [isCA_iff_shift_comm]</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">intro</span> g y</span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨x, rfl⟩ := hs y</span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [← hΦ.shift_comm, h, hF.shift_comm, hΦ.shift_comm, h]</span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Factor</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 </body>
 </html>

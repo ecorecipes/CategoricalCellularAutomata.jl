@@ -40,6 +40,10 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `Lumping.wholeStep_descends`, `Lumping.liftCallback_wholeStep`, `wholeStep_strictly_more` | `callback=:lift_step` and `callback=:lift` | what descends separately descends together, with the same result, and the converse fails: a rule can write a layer that its callback reads |
 | `BlockLumping`, `BlockLumping.blockRun_quotient` | `quotient` of a model with a `BlockRule` | block rules: the same construction on blocks of states, and the quotient runs every run of the original, mapped down |
 | `Lumping.erased_run` | `is_model_map(f, prob)` | what a run can show: without feedback, erasing what is forgotten changes nothing kept, so a difference disproves the map |
+| `SlidingMap`, `SlidingMap.run_map` | `SlidingBlockMap`, `pushforward`, `is_model_map` | maps that read a window around each cell send runs to runs |
+| `instCategorySlidingModels`, `ModelMap.slidingFunctor`, `kinkMap126_not_cellwise` | `compose` of `SlidingBlockMap`s and `ModelMap`s | they form a category holding the cell-by-cell maps as a subcategory, and it is larger |
+| `kinkMap126`, `wallsMap`, `walls_need_other_coins` | vignette 15, `Maps that read neighbours` | the boundaries of rule 126 are rule 18; the boundaries of a voter model move on the coins of two cells, whichever coins are drawn, and cannot on one |
+| `factor_exists_iff`, `factor_unique`, `factor_isCA` | the search over elementary rules in the tests | through a surjective cellular automaton, a factor exists exactly when the rule respects the fibres, and is a unique cellular automaton |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
 main theorem uses (only `propext`, `Classical.choice` and `Quot.sound` are expected).

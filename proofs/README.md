@@ -66,3 +66,9 @@ JuliaMono read from `../../fonts/JuliaMono/`.
    depend on what is forgotten, gives the same result when each part descends alone, and is
    strictly more general, since a rule can write a layer that its callback reads. Block rules
    get the same construction on blocks of states.
+12. `Sliding.lean`: maps that read a finite window around each cell, the sliding block codes of
+   symbolic dynamics, send runs to runs and form a category holding the cell-by-cell maps as a
+   subcategory, which it strictly extends. The boundaries of rule 126 are rule 18. The boundaries
+   of a voter model move on the coins of the two cells beside them, for every field of coins, and
+   no rule reading one coin can do that. Through a surjective cellular automaton, a factor exists
+   exactly when the rule respects the fibres, and it is then a unique cellular automaton.

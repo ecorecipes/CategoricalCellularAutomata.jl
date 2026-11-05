@@ -13,6 +13,7 @@ using Catlab: @present, @program, @relation, FreeCartesianCategory
     include("test_spaces.jl")
     include("test_gluing.jl")
     include("test_model_maps.jl")
+    include("test_sliding_block_maps.jl")
     include("test_errors.jl")
     include("test_docstrings.jl")
 end

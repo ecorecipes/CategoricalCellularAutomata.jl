@@ -86,3 +86,16 @@ open CategoricalCellularAutomataProofs
 #print axioms BlockLumping.rule_unique
 #print axioms BlockLumping.descends_iff_exists_rule
 #print axioms BlockLumping.blockRun_quotient
+
+-- Sliding.lean
+#print axioms SlidingMap.run_map
+#print axioms instCategorySlidingModels
+#print axioms ModelMap.slidingFunctor
+#print axioms ModelMap.toSliding_injective
+#print axioms kinkMap126
+#print axioms kinkMap126_not_cellwise
+#print axioms wallsMap
+#print axioms walls_need_other_coins
+#print axioms factor_exists_iff
+#print axioms factor_unique
+#print axioms factor_isCA

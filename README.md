@@ -43,6 +43,9 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
   (`pushforward`), form a category, and commute with moving models between spaces; quotients that need no
   rule or callback of their own (`quotient`, `forget_layers`, `callback=:lift`), or that treat a rule and its
   callback as one step (`callback=:lift_step`).
+  Maps that read a window around each cell (`SlidingBlockMap`, the sliding block codes of symbolic dynamics)
+  can see what lies between cells: the boundaries of rule 126 are rule 18, and those of a voter model move on two
+  cells' coins.
 - **Formal proofs**: a Lean 4 / Mathlib library in [`proofs/`](proofs/README.md) proves, for any group and
   alphabet, the laws the test suite checks numerically: shifts and pullbacks, equivariance and equality at
   the identity, composition and pairing, the cartesian monoidal category of cellular automata,
@@ -101,6 +104,7 @@ Requires Julia â‰¥ 1.12.
 | 12 | [Gluing spaces](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/12_gluing_spaces/12_gluing_spaces.md) | Research extension: landscapes as colimits of patches (strips, cylinders, tori, blocks), gluing in stages, dynamics restricted to patches, and fields joined by a road |
 | 13 | [Maps between models](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/13_model_maps/13_model_maps.md) | Research extension: the immigration game as Life with colours, tracing introductions of a disease, labels that feed back, the category of models, parameters of composites, and maps of spaces |
 | 14 | [Maps between zoo models](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/14_zoo_model_maps/14_zoo_model_maps.md) | Research extension: published models from EcologicalCellularAutomata: forgetting record layers, a management model that reduces to its base model, percolation inside a viral front model, quotients of models with callbacks, and what a short run can hide |
+| 15 | [Maps that read neighbours](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/15_sliding_block_maps/15_sliding_block_maps.md) | Research extension: sliding block maps. The boundaries of rule 126 are rule 18, all 65536 pairs of elementary rules searched, the boundaries of a voter model and why they need two coins, composing with cell-by-cell maps |
 
 Each vignette is also published as a tutorial in the
 [documentation](https://ecorecipes.github.io/CategoricalCellularAutomata.jl/); the sources are the `.qmd` files in

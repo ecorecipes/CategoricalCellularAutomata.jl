@@ -9,3 +9,4 @@ import CategoricalCellularAutomataProofs.Gluing
 import CategoricalCellularAutomataProofs.Spaces
 import CategoricalCellularAutomataProofs.Models
 import CategoricalCellularAutomataProofs.Quotients
+import CategoricalCellularAutomataProofs.Sliding

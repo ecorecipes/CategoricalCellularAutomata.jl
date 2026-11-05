@@ -66,6 +66,16 @@ the `references.bib` files here are synced copies.
   scheme goes to `pushforward` as `alg`. Each run owns the original's integrator through the backend state, so
   callbacks keep their own state and ensembles share nothing; every step starts from the lift, never from the
   integrator's previous state, or what is forgotten would be carried along and any `h` would pass.
+- Sliding block maps (`src/sliding_block_maps.jl`): a `SlidingBlockMap` reads a window around each cell, as a rule
+  reads its neighbourhood, edges included, and is a map of models when it commutes with the two models' steps. The
+  local check tries every assignment to the cells the two ways round the square read, at given contexts, on a
+  periodic lattice or a graph; it is tested against the composition of `CellularAutomaton`s, compared by `==`, and
+  against every pair of elementary rules (32 maps under the boundary code, those that respect complements). A
+  stochastic domain's next state depends on the numbers of every cell in the window, so the codomain's rule must
+  draw those too, through a `CellContext` with the other cell's id. There is no section, so `:lift` and `:lift_step`
+  are refused and there is no quotient: the codomain is written by hand and checked. Composing two needs `Offsets`
+  windows; composing with a `ModelMap` keeps the other's window on any space. `ModelMap` and `SlidingBlockMap` share
+  `is_model_map` and `pushforward`, but only `ModelMap`s belong to the Catlab `@instance`.
 - This package does not depend on EcologicalCellularAutomata. Only the vignette environment does (vignette
   14 uses published models); the test suite does not, and `vignettes.yml` checks the zoo out.
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with
@@ -86,7 +96,7 @@ the `references.bib` files here are synced copies.
 
 - `src/CategoricalCellularAutomata.jl`: module docstring, exports, includes.
 - `proofs/`: the Lean library (`CategoricalCellularAutomataProofs/{Basic,Configurations,CellularAutomata,
-  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces,Models,Quotients}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
+  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces,Models,Quotients,Sliding}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
   generated document; `.github/workflows/lean.yml` builds and audits it.
 - `src/errors.jl`: the root `CategoricalCellularAutomataError` and every exception under it.
 - `src/groups.jl`: `CyclicGroup`, `TorusGroup`, `FiniteGroup`. `src/configurations.jl`: `FinAlphabet`,
@@ -102,12 +112,13 @@ the `references.bib` files here are synced copies.
   `oapply` for core `CAModel`s over undirected wiring diagrams, on square or hexagonal lattices and graphs)
   and `src/spaces.jl` (`NeighbourhoodSpace` from any core space, `SpaceMorphism`, `pullback`, `covering`,
   `reflection_fold`, `cayley_space`) and `src/gluing.jl` (`SlotGraph`, `lattice_patch`, `glue`) and `src/model_maps.jl` (`ModelMap`,
-  `is_model_map`, `pushforward` of states and problems, `quotient`, `forget_layers`, the category of models).
+  `is_model_map`, `pushforward` of states and problems, `quotient`, `forget_layers`, the category of models) and
+  `src/sliding_block_maps.jl` (`SlidingBlockMap`, maps that read a window).
 - `test/runtests.jl`, `test/test_groups.jl`, `test/test_cartesian.jl` (category and product laws with random
   lookup-table rules), `test/test_chl_bridge.jl`, `test/test_generalized.jl` (homomorphisms, free
   products, generalised, linear and monotone automata), `test/test_markov.jl` (the research
   extensions), `test/test_spaces.jl` (geometries and composites on them), `test/test_gluing.jl` (landscapes glued
-  from patches), `test/test_model_maps.jl` (maps between models), `test/test_errors.jl`,
+  from patches), `test/test_model_maps.jl` (maps between models), `test/test_sliding_block_maps.jl` (maps that read neighbours), `test/test_errors.jl`,
   `test/test_docstrings.jl`: the suite,
   seeded RNGs only.
 
