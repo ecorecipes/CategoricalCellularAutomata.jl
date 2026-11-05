@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Maps between models · CategoricalCellularAutomata.jl</title><meta name="title" content="Maps between models · CategoricalCellularAutomata.jl"/><meta property="og:title" content="Maps between models · CategoricalCellularAutomata.jl"/><meta property="twitter:title" content="Maps between models · CategoricalCellularAutomata.jl"/><meta name="description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="og:description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="twitter:description" content="Documentation for CategoricalCellularAutomata.jl."/><meta property="og:url" content="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/13_model_maps/"/><meta property="twitter:url" content="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/13_model_maps/"/><link rel="canonical" href="https://ecorecipes.github.io/CategoricalCellularAutomata.jl/tutorials/13_model_maps/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/documentercitations/citations-hover.css" rel="stylesheet" type="text/css"/><link href="../../assets/documentercitations/citations.css" rel="stylesheet" type="text/css"/><script src="../../assets/documentercitations/citations-data.js"></script><script src="../../assets/documentercitations/citations-hover.js"></script><script src="../../assets/documentercitations/citations-backlinks.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">CategoricalCellularAutomata.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../../api_spaces/">Spaces and gluing</a></li><li><a class="tocitem" href="../../references/">References</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../01_ca_over_groups/">Cellular automata over groups</a></li><li><a class="tocitem" href="../02_composition/">Composing cellular automata</a></li><li><a class="tocitem" href="../03_products/">Products and multi-layer models</a></li><li><a class="tocitem" href="../04_wiring_diagrams/">Models from wiring diagrams</a></li><li><a class="tocitem" href="../05_curtis_hedlund_lyndon/">Recognising cellular automata</a></li><li><a class="tocitem" href="../06_generalised_ca/">Generalised cellular automata</a></li><li><a class="tocitem" href="../07_alphabet_categories/">Linear and monotone cellular automata</a></li><li><a class="tocitem" href="../08_free_products/">Free products and weak products</a></li><li><a class="tocitem" href="../09_stochastic_ca_markov/">Stochastic cellular automata in a Markov category</a></li><li><a class="tocitem" href="../10_composing_models/">Composing models over shared layers</a></li><li><a class="tocitem" href="../11_geometries/">Geometries</a></li><li><a class="tocitem" href="../12_gluing_spaces/">Gluing spaces</a></li><li class="is-active"><a class="tocitem" href>Maps between models</a><ul class="internal"><li><a class="tocitem" href="#Overview"><span>Overview</span></a></li><li><a class="tocitem" href="#The-immigration-game-and-Life"><span>The immigration game and Life</span></a></li><li><a class="tocitem" href="#Tracing-introductions-of-a-disease"><span>Tracing introductions of a disease</span></a></li><li><a class="tocitem" href="#When-a-label-feeds-back"><span>When a label feeds back</span></a></li><li><a class="tocitem" href="#A-category-of-models"><span>A category of models</span></a></li><li><a class="tocitem" href="#Parameters,-and-composites"><span>Parameters, and composites</span></a></li><li><a class="tocitem" href="#Maps-of-models-and-maps-of-spaces"><span>Maps of models and maps of spaces</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Maps between models</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Maps between models</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/ecorecipes/CategoricalCellularAutomata.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/docs/src/tutorials/13_model_maps.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Maps-between-models"><a class="docs-heading-anchor" href="#Maps-between-models">Maps between models</a><a id="Maps-between-models-1"></a><a class="docs-heading-anchor-permalink" href="#Maps-between-models" title="Permalink"></a></h1><p>Simon Frost</p><ul><li><a href="#overview">Overview</a></li><li><a href="#the-immigration-game-and-life">The immigration game and Life</a></li><li><a href="#tracing-introductions-of-a-disease">Tracing introductions of a disease</a></li><li><a href="#when-a-label-feeds-back">When a label feeds back</a></li><li><a href="#a-category-of-models">A category of models</a></li><li><a href="#parameters-and-composites">Parameters, and composites</a></li><li><a href="#maps-of-models-and-maps-of-spaces">Maps of models and maps of spaces</a></li><li><a href="#summary">Summary</a></li></ul><h2 id="Overview"><a class="docs-heading-anchor" href="#Overview">Overview</a><a id="Overview-1"></a><a class="docs-heading-anchor-permalink" href="#Overview" title="Permalink"></a></h2><p>Models are often refinements of one another. A model may carry a label that the dynamics never read: which introduction a case of a disease descends from, or which of two colonies a live cell belongs to. Forgetting the label should give the plainer model, run for run. This vignette makes that precise, as maps between models, and checks it on CellularAutomataCore models.</p><p>A <strong>map of models</strong> <code>M → N</code> is a map <code>h</code> from the cell states of <code>M</code> to those of <code>N</code>, applied cell by cell, with a map of parameters, that commutes with the rules. That means the next state of <code>M</code>, mapped by <code>h</code>, is the next state of <code>N</code> computed from the mapped cell and neighbours, for every local configuration, with the same cell, time and seed. Then every run of <code>M</code>, mapped by <code>h</code>, is the run of <code>N</code> from the mapped initial state. For stochastic models this holds run by run, not only in distribution: both models draw the same counter-based random numbers. Models and these maps form a category, and moving models along maps of spaces is a functor on it.</p><p>This is a <strong>research extension</strong>, beyond the papers the package implements. The Lean library in <code>proofs/</code> proves the laws (<code>ModelMap.run_map</code>, the <code>Category</code> instance, <code>SpaceMap.pullFunctor</code>).</p><pre><code class="language-julia hljs">ENV[&quot;GKSwstype&quot;] = &quot;100&quot;
+using CategoricalCellularAutomata
+using CellularAutomataCore: CellularAutomataCore, CAProblem, solve, Torus, VonNeumann,
+                            Moore, @camodel, bernoulli, uniform
+using Catlab: @relation, compose, id, dom, codom
+using Plots
+using Random</code></pre><h2 id="The-immigration-game-and-Life"><a class="docs-heading-anchor" href="#The-immigration-game-and-Life">The immigration game and Life</a><a id="The-immigration-game-and-Life-1"></a><a class="docs-heading-anchor-permalink" href="#The-immigration-game-and-Life" title="Permalink"></a></h2><p>The immigration game is Life with two colours of live cells. A live cell keeps its colour; a birth takes the colour that most of its three live neighbours have. Births and deaths do not depend on the colours, so forgetting them should give Life.</p><pre><code class="language-julia hljs">life = @camodel Life begin
+    @states alive::Int = 0 ∈ (0, 1)
+    @neighbourhood Moore(1)
+    @rule begin
+        n = sum(nbrs)
+        cell == 1 ? Int(n == 2 || n == 3) : Int(n == 3)
+    end
+end
+immigration = @camodel Immigration begin
+    @states colour::Int = 0 ∈ (0, 1, 2)
+    @neighbourhood Moore(1)
+    @rule begin
+        n = count(!=(0), nbrs)
+        if cell != 0
+            n == 2 || n == 3 ? cell : 0
+        elseif n == 3
+            count(==(1), nbrs) &gt;= 2 ? 1 : 2
+        else
+            0
+        end
+    end
+end
+forget = ModelMap(immigration, life, c -&gt; Int(c != 0))</code></pre><pre><code class="nohighlight hljs">ModelMap(Immigration → Life)</code></pre><p><code>is_model_map</code> checks the commuting condition on every local configuration: here all <code>3^9</code> patterns of a cell and its eight neighbours. Life’s rule does not read the cell context, so this check proves the map. Keeping only one colour alive is not a map of models:</p><pre><code class="language-julia hljs">(forget=is_model_map(forget; contexts=1),
+ one_colour=is_model_map(ModelMap(immigration, life, c -&gt; Int(c == 1)); contexts=1))</code></pre><pre><code class="nohighlight hljs">(forget = true, one_colour = false)</code></pre><p><code>pushforward(f, prob)</code> maps a problem of the domain to one of the codomain, from the mapped initial state. Its run is the original run with the colours forgotten:</p><pre><code class="language-julia hljs">prob = CAProblem(immigration, (; colour=rand(Xoshiro(3), 0:2, 64, 48)), 40;
+                 space=Torus(64, 48))
+sol = solve(prob)
+plain = solve(pushforward(forget, prob))
+all(t -&gt; pushforward(forget, sol.u[t]) == plain.u[t], eachindex(sol.u))</code></pre><pre><code class="nohighlight hljs">true</code></pre><pre><code class="language-julia hljs">plot(heatmap(sol.u[end]&#39;; c=cgrad([:white, :darkorange, :steelblue]; categorical=true),
+             colorbar=false, clims=(0, 2), title=&quot;immigration game, step 40&quot;),
+     heatmap(plain.u[end]&#39;; c=cgrad([:white, :black]; categorical=true), colorbar=false,
+             clims=(0, 1), title=&quot;Life, step 40&quot;);
+     layout=(1, 2), size=(800, 300), aspect_ratio=1, framestyle=:box, ticks=false,
+     yflip=true, titlefontsize=10)</code></pre><p><img src="../13_model_maps_files/figure-commonmark/cell-6-output-1.svg" alt/></p><h2 id="Tracing-introductions-of-a-disease"><a class="docs-heading-anchor" href="#Tracing-introductions-of-a-disease">Tracing introductions of a disease</a><a id="Tracing-introductions-of-a-disease-1"></a><a class="docs-heading-anchor-permalink" href="#Tracing-introductions-of-a-disease" title="Permalink"></a></h2><p>A disease spreads through a field from three introductions. The plain model is SIR on the von Neumann neighbourhood. The traced model also records, for each case, the introduction it descends from. A newly infected cell takes the label of one of its infected neighbours, chosen with a draw number of its own. So the infection itself draws exactly as in the plain model, and the label never feeds back on who is infected.</p><pre><code class="language-julia hljs">sir = @camodel SIR begin
+    @states state::Symbol = :S ∈ (:S, :I, :R)
+    @parameters β = 0.4 γ = 0.2
+    @neighbourhood VonNeumann(1)
+    @rule begin
+        if cell == :S
+            bernoulli(ctx, 1 - (1 - β)^count(==(:I), nbrs), 1) ? :I : :S
+        elseif cell == :I
+            bernoulli(ctx, γ, 2) ? :R : :I
+        else
+            cell
+        end
+    end
+end
+traced = @camodel TracedSIR begin
+    @states state::Symbol = :S ∈ (:S, :I, :R) lineage::Int = 0 ∈ 0:3
+    @parameters β = 0.4 γ = 0.2
+    @neighbourhood VonNeumann(1)
+    @rule begin
+        if cell.state == :S
+            k = count(n -&gt; n.state == :I, nbrs)
+            if bernoulli(ctx, 1 - (1 - β)^k, 1)
+                j = clamp(ceil(Int, uniform(ctx, 3) * k), 1, k)
+                source = nbrs[findall(n -&gt; n.state == :I, collect(nbrs))[j]]
+                (state=:I, lineage=source.lineage)
+            else
+                cell
+            end
+        elseif cell.state == :I
+            bernoulli(ctx, γ, 2) ? (state=:R, lineage=cell.lineage) : cell
+        else
+            cell
+        end
+    end
+end
+untrace = ModelMap(traced, sir, c -&gt; c.state)
+is_model_map(untrace)</code></pre><pre><code class="nohighlight hljs">true</code></pre><p>The check covers every pattern of states and labels in a cell and its four neighbours, at eight cell contexts. Each context draws different random numbers, and both models must agree at each one. For a stochastic rule this samples the random numbers rather than proving the map; here the map holds for all of them, because both models read draws 1 and 2 in the same way. The traced run, with its labels forgotten, is the plain run from the same introductions, at every step:</p><pre><code class="language-julia hljs">ports = Dict(CartesianIndex(10, 12) =&gt; 1, CartesianIndex(50, 18) =&gt; 2,
+             CartesianIndex(30, 50) =&gt; 3)
+start = (; state=I -&gt; haskey(ports, I) ? :I : :S, lineage=I -&gt; get(ports, I, 0))
+prob = CAProblem(traced, start, 80, (; β=0.45); space=Torus(60, 60), seed=4)
+sol = solve(prob)
+plain = solve(pushforward(untrace, prob))
+all(t -&gt; pushforward(untrace, sol.u[t]) == plain.u[t], eachindex(sol.u))</code></pre><pre><code class="nohighlight hljs">true</code></pre><p>Part way through the epidemic, the labels show where each introduction’s descendants have gone (grey: not yet infected), while the plain model shows only who is susceptible, infected or recovered:</p><pre><code class="language-julia hljs">labels(u) = map((s, l) -&gt; s == :S ? 0 : l, u.state, u.lineage)
+code(u) = map(s -&gt; s == :S ? 0 : s == :I ? 2 : 1, u)
+snapshot = 26 # step 25
+plot(heatmap(labels(sol.u[snapshot])&#39;;
+             c=cgrad([:lightgrey, :firebrick, :seagreen, :royalblue]; categorical=true),
+             colorbar=false, clims=(0, 3), title=&quot;traced: introductions 1, 2, 3&quot;),
+     heatmap(code(plain.u[snapshot])&#39;; c=:viridis, colorbar=false, clims=(0, 2),
+             title=&quot;plain SIR (purple S, green R, yellow I)&quot;);
+     layout=(1, 2), size=(800, 400), aspect_ratio=1, framestyle=:box, ticks=false,
+     yflip=true, titlefontsize=10)</code></pre><p><img src="../13_model_maps_files/figure-commonmark/cell-9-output-1.svg" alt/></p><h2 id="When-a-label-feeds-back"><a class="docs-heading-anchor" href="#When-a-label-feeds-back">When a label feeds back</a><a id="When-a-label-feeds-back-1"></a><a class="docs-heading-anchor-permalink" href="#When-a-label-feeds-back" title="Permalink"></a></h2><p>If one introduction is a more transmissible strain, its label changes who gets infected, and forgetting it is no longer a map of models. The check fails on some local configuration, and the runs part. Both epidemics eventually reach almost every cell of the torus, so the difference shows in the timing:</p><pre><code class="language-julia hljs">virulent = @camodel VirulentSIR begin
+    @states state::Symbol = :S ∈ (:S, :I, :R) lineage::Int = 0 ∈ 0:3
+    @parameters β = 0.4 γ = 0.2
+    @neighbourhood VonNeumann(1)
+    @rule begin
+        if cell.state == :S
+            escape = prod((n.state == :I ? (n.lineage == 3 ? 0.2 : 1 - β) : 1.0
+                           for n in nbrs); init=1.0)
+            k = count(n -&gt; n.state == :I, nbrs)
+            if bernoulli(ctx, 1 - escape, 1)
+                j = clamp(ceil(Int, uniform(ctx, 3) * k), 1, k)
+                source = nbrs[findall(n -&gt; n.state == :I, collect(nbrs))[j]]
+                (state=:I, lineage=source.lineage)
+            else
+                cell
+            end
+        elseif cell.state == :I
+            bernoulli(ctx, γ, 2) ? (state=:R, lineage=cell.lineage) : cell
+        else
+            cell
+        end
+    end
+end
+drop = ModelMap(virulent, sir, c -&gt; c.state)
+vprob = CAProblem(virulent, start, 80, (; β=0.45); space=Torus(60, 60), seed=4)
+vsol, vplain = solve(vprob), solve(pushforward(drop, vprob))
+reached(u) = count(!=(:S), u)
+(is_model_map=is_model_map(drop),
+ first_step_that_differs=findfirst(t -&gt; pushforward(drop, vsol.u[t]) != vplain.u[t],
+                                   eachindex(vsol.u)) - 1,
+ reached_at_step_25_with_the_strain=reached(vsol.u[26].state),
+ reached_at_step_25_label_forgotten=reached(vplain.u[26]))</code></pre><pre><code class="nohighlight hljs">(is_model_map = false, first_step_that_differs = 1, reached_at_step_25_with_the_strain = 2397, reached_at_step_25_label_forgotten = 1803)</code></pre><h2 id="A-category-of-models"><a class="docs-heading-anchor" href="#A-category-of-models">A category of models</a><a id="A-category-of-models-1"></a><a class="docs-heading-anchor-permalink" href="#A-category-of-models" title="Permalink"></a></h2><p>Maps of models compose: cell states and parameters go through both maps. With identities, CellularAutomataCore models and their maps form a category, an instance of Catlab’s <code>ThCategory</code>. Merging introduction 3 into introduction 2 is a map from the traced model to itself, and following it by forgetting the labels is again a map of models, the same as forgetting them directly:</p><pre><code class="language-julia hljs">merge3 = ModelMap(traced, traced, c -&gt; (state=c.state, lineage=min(c.lineage, 2)))
+both = compose(merge3, untrace)
+(merge_is_a_map=is_model_map(merge3), composite_is_a_map=is_model_map(both),
+ domain=dom(both).name, codomain=codom(both).name,
+ same_as_forgetting=all(u -&gt; pushforward(both, u) == pushforward(untrace, u), sol.u),
+ identity=all(u -&gt; pushforward(compose(id(traced), untrace), u) ==
+                   pushforward(untrace, u), sol.u))</code></pre><pre><code class="nohighlight hljs">(merge_is_a_map = true, composite_is_a_map = true, domain = :TracedSIR, codomain = :SIR, same_as_forgetting = true, identity = true)</code></pre><h2 id="Parameters,-and-composites"><a class="docs-heading-anchor" href="#Parameters,-and-composites">Parameters, and composites</a><a id="Parameters,-and-composites-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters,-and-composites" title="Permalink"></a></h2><p>A map of models also maps parameters. A composite built with <code>oapply</code> keeps each box’s parameters under the box’s name. Projecting a composite of SIR and a box that counts each cell’s days infected onto SIR maps the composite’s parameters to <code>p.sir</code>. It is a map of models when the boxes share random numbers. Otherwise the SIR box draws from a seed of its own, and the projection fails:</p><pre><code class="language-julia hljs">counter = @camodel Counter begin
+    @states state::Symbol = :S ∈ (:S, :I, :R) days::Int = 0
+    @neighbourhood VonNeumann(1)
+    @rule (state=cell.state, days=cell.days + (cell.state == :I))
+end
+d = @relation (state,) begin
+    sir(state)
+    counter(state)
+end
+boxes = (sir=OpenCAModel(sir), counter=OpenCAModel(counter; ports=[:state], reads=[:state]))
+map([true, false]) do shared
+    comp = oapply(d, boxes; shared_randomness=shared)
+    proj = ModelMap(comp, sir, c -&gt; c.state; parameters=p -&gt; p.sir)
+    cells = [(state=s, counter_days=n) for s in (:S, :I, :R) for n in 0:2]
+    cprob = CAProblem(comp, (; state=start.state), 60,
+                      (; sir=(β=0.45, γ=0.2), counter=(;)); space=Torus(60, 60), seed=4)
+    csol = solve(cprob)
+    psol = solve(pushforward(proj, cprob))
+    (shared_randomness=shared, is_model_map=is_model_map(proj; cells),
+     runs_agree=all(t -&gt; pushforward(proj, csol.u[t]) == psol.u[t], eachindex(csol.u)))
+end</code></pre><pre><code class="nohighlight hljs">2-element Vector{@NamedTuple{shared_randomness::Bool, is_model_map::Bool, runs_agree::Bool}}:
+ (shared_randomness = 1, is_model_map = 1, runs_agree = 1)
+ (shared_randomness = 0, is_model_map = 0, runs_agree = 0)</code></pre><p>The <code>days</code> layer has no finite domain, so the check is given the cell values to try with <code>cells</code>.</p><h2 id="Maps-of-models-and-maps-of-spaces"><a class="docs-heading-anchor" href="#Maps-of-models-and-maps-of-spaces">Maps of models and maps of spaces</a><a id="Maps-of-models-and-maps-of-spaces-1"></a><a class="docs-heading-anchor-permalink" href="#Maps-of-models-and-maps-of-spaces" title="Permalink"></a></h2><p>Moving a problem along a map of spaces (the vignette on geometries) and pushing it along a map of models commute: moving the traced problem from a 20 × 20 torus to the 60 × 60 torus that covers it and then forgetting the labels gives the same problem, and the same run, as forgetting first and then moving. Moving models along a map of spaces is a functor between the categories of models on the two spaces.</p><pre><code class="language-julia hljs">φ = covering(Torus(60, 60), Torus(20, 20), VonNeumann(1))
+small = CAProblem(traced, (; state=I -&gt; I == CartesianIndex(5, 5) ? :I : :S,
+                          lineage=I -&gt; Int(I == CartesianIndex(5, 5))), 30;
+                  space=Torus(20, 20), seed=2)
+one = pushforward(untrace, pullback(φ, small; space=Torus(60, 60)))
+two = pullback(φ, pushforward(untrace, small); space=Torus(60, 60))
+solve(one).u == solve(two).u</code></pre><pre><code class="nohighlight hljs">true</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><table><tr><th style="text-align: right">map</th><th style="text-align: right">from</th><th style="text-align: right">to</th><th style="text-align: right">a map of models?</th></tr><tr><td style="text-align: right">forget colours</td><td style="text-align: right">immigration game</td><td style="text-align: right">Life</td><td style="text-align: right">yes: proved by checking every pattern</td></tr><tr><td style="text-align: right">forget lineages</td><td style="text-align: right">traced SIR</td><td style="text-align: right">SIR</td><td style="text-align: right">yes, run by run with shared random numbers</td></tr><tr><td style="text-align: right">forget lineages</td><td style="text-align: right">SIR with a more transmissible lineage</td><td style="text-align: right">SIR</td><td style="text-align: right">no: the label feeds back</td></tr><tr><td style="text-align: right">merge lineages 3 and 2</td><td style="text-align: right">traced SIR</td><td style="text-align: right">itself</td><td style="text-align: right">yes; composes with forgetting</td></tr><tr><td style="text-align: right">project onto a box</td><td style="text-align: right"><code>oapply</code> composite</td><td style="text-align: right">the box’s model</td><td style="text-align: right">yes when the boxes share random numbers, with parameters <code>p -&gt; p.sir</code></td></tr></table><p>A map of models says when a richer model contains a plainer one exactly, so the plainer model’s results hold for the richer one, run by run, and the labels it carries can be read off for free. Together with maps of spaces, it moves a model to a new space and to a coarser description in either order.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../12_gluing_spaces/">« Gluing spaces</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Thursday 5 November 2026 00:21">Thursday 5 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
