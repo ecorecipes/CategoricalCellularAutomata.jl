@@ -60,7 +60,7 @@ d = distribution(sis, x)
 (outcomes=length(d), total=sum(values(d)))
 ```
 
-    (outcomes = 16, total = 1.0)
+    (outcomes = 16, total = 0.9999999999999999)
 
 There are 16 possible outcomes, not `2^6`: the two plants with no
 infected neighbour stay healthy for certain.

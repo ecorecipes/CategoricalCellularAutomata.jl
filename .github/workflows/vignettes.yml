@@ -30,12 +30,13 @@ jobs:
         with:
           tinytex: true
       - name: Install PDF prerequisites
-        # graphviz provides dot, which Catlab uses to draw wiring diagrams
-        # (vignettes 04 and 10). librsvg2-bin provides rsvg-convert, which quarto
+        # graphviz provides dot and neato, which Catlab uses to draw wiring diagrams
+        # (vignettes 04 and 10); on current Ubuntu neato's layout is a separate package.
+        # librsvg2-bin provides rsvg-convert, which quarto
         # uses to embed SVG figures in the PDF. stix2-otf supplies the STIX Two
         # text/math fonts; the remaining packages are used by the quarto template.
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin graphviz
+          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin graphviz libgvplugin-neato-layout8
           # TinyTeX (installed by quarto-actions/setup) is not on PATH by default.
           tl=$(dirname "$(ls -d "$HOME"/.TinyTeX/bin/*/tlmgr | head -1)")
           echo "$tl" >> "$GITHUB_PATH"
@@ -52,13 +53,22 @@ jobs:
           curl -sSL https://github.com/cormullion/juliamono/releases/latest/download/JuliaMono-ttf.tar.gz | tar -xz -C fonts/JuliaMono
       - name: Instantiate vignette environment
         run: julia --project=CategoricalCellularAutomata.jl/vignettes -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
-          path: CategoricalCellularAutomata.jl/vignettes/_freeze
-          key: freeze-${{ runner.os }}-${{ hashFiles('CategoricalCellularAutomata.jl/vignettes/Manifest.toml', 'CategoricalCellularAutomata.jl/vignettes/**/*.qmd') }}
+          # entries are named by what they depend on, so an old one can be reused safely
+          path: CategoricalCellularAutomata.jl/vignettes/_exec_cache
+          key: vignette-exec-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: vignette-exec-${{ runner.os }}-
       - name: Render (html, gfm, pdf)
-        working-directory: CategoricalCellularAutomata.jl/vignettes
-        run: quarto render
+        working-directory: CategoricalCellularAutomata.jl
+        run: julia scripts/render_vignettes.jl
+      - uses: actions/cache/save@v4
+        # also after a failure: the script carries on past a failing vignette, and the
+        # others need not run again
+        if: always()
+        with:
+          path: CategoricalCellularAutomata.jl/vignettes/_exec_cache
+          key: vignette-exec-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Report drift from the committed renders
         # Informational: a fresh render on this runner differs from the committed one in
         # timings, the last digits of some floats (x86 here, the renders are made locally)
