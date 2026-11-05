@@ -57,10 +57,10 @@ sis = StochasticCA(Z, [5, 0, 1], p -> begin
                    end; dom=B)
 x = Configuration(Z, [0, 1, 1, 0, 0, 0])
 d = distribution(sis, x)
-(outcomes=length(d), total=sum(values(d)))
+(outcomes=length(d), total=round(sum(values(d)); digits=12))
 ```
 
-    (outcomes = 16, total = 0.9999999999999999)
+    (outcomes = 16, total = 1.0)
 
 There are 16 possible outcomes, not `2^6`: the two plants with no
 infected neighbour stay healthy for certain.
