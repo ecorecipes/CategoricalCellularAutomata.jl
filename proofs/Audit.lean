@@ -56,3 +56,8 @@ open CategoricalCellularAutomataProofs
 -- Spaces.lean
 #print axioms SpaceMap.step_pullback
 #print axioms SpaceMap.run_pullback
+-- Models.lean
+#print axioms ModelMap.step_map
+#print axioms ModelMap.run_map
+#print axioms instCategoryCAModel
+#print axioms SpaceMap.pullFunctor

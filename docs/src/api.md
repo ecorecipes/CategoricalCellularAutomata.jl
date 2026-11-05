@@ -85,7 +85,7 @@ group homomorphism, and their weak products over free products.
 GeneralizedCA
 factorize(::GeneralizedCA)
 pullback(::GroupHom, ::Configuration)
-pushforward
+pushforward(::Any, ::AbstractFiniteGroup)
 Base.:(==)(::GeneralizedCA, ::GeneralizedCA)
 weak_product
 weak_projections
@@ -127,6 +127,19 @@ shared layers.
 ```@docs
 OpenCAModel
 oapply(::Catlab.WiringDiagrams.UndirectedWiringDiagrams.AbstractUWD, ::AbstractVector{OpenCAModel})
+```
+
+## Research extension: maps between models
+
+Maps of cell states that commute with the rules of two CellularAutomataCore
+models: they send every run of one model to a run of the other, and with the
+models they form a category.
+
+```@docs
+ModelMap
+is_model_map
+pushforward(::ModelMap, ::Any)
+compose(::ModelMap, ::ModelMap)
 ```
 
 ## The Curtis–Hedlund–Lyndon theorem

@@ -7,3 +7,4 @@ import CategoricalCellularAutomataProofs.Linear
 import CategoricalCellularAutomataProofs.Generalized
 import CategoricalCellularAutomataProofs.Gluing
 import CategoricalCellularAutomataProofs.Spaces
+import CategoricalCellularAutomataProofs.Models

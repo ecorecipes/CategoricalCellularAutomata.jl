@@ -126,6 +126,8 @@ spaces</a></li>
 <li><a href="#moving-models-between-spaces"
 id="toc-moving-models-between-spaces">Moving models between
 spaces</a></li>
+<li><a href="#maps-between-models" id="toc-maps-between-models">Maps
+between models</a></li>
 </ul>
 </nav>
 <!-- CategoricalCellularAutomataProofs/Basic.lean -->
@@ -269,6 +271,26 @@ patches (a limit)</td>
 <code>pullback(f, prob; space)</code></td>
 <td>a problem moved along a map of spaces (slots reordered, the image’s
 rule and random numbers) runs the pullback of the original run</td>
+</tr>
+<tr>
+<td><code>CAModel</code>, <code>ModelMap</code>,
+<code>instCategoryCAModel</code></td>
+<td><code>CAModel</code>, <code>ModelMap</code>, <code>compose</code>,
+<code>id</code>, <code>is_model_map</code></td>
+<td>models and the maps of cell states commuting with their rules form a
+category</td>
+</tr>
+<tr>
+<td><code>ModelMap.run_map</code></td>
+<td><code>pushforward(f, prob)</code></td>
+<td>a map of models sends every run to the run from the mapped initial
+state</td>
+</tr>
+<tr>
+<td><code>SpaceMap.pullFunctor</code></td>
+<td><code>pullback(f, prob; space)</code>, <code>pushforward</code></td>
+<td>moving models along a map of spaces is a functor: maps of models and
+of spaces commute</td>
 </tr>
 </tbody>
 </table>
@@ -1047,5 +1069,116 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb16-1"><a href=
 <span id="cb16-64"><a href="#cb16-64" aria-hidden="true" tabindex="-1"></a>  map_nbrs y := <span class="kw">by</span> <span class="cf">simpa</span> [apply_ite (<span class="kw">fun</span> F : List X → List X =&gt; F ((nbrsY y).map φ))] <span class="kw">using</span> h y</span>
 <span id="cb16-65"><a href="#cb16-65" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-66"><a href="#cb16-66" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/Models.lean -->
+<h1 id="maps-between-models">Maps between models</h1>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Spaces</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.CategoryTheory.Functor.Basic</span></code></pre></div>
+<p>A model on a space (cells <code>X</code>, each reading its neighbours
+in slot order) is a set of cell states <code>A</code> with a rule
+<code>μ t c : List A → A</code> for each time <code>t</code> and cell
+<code>c</code> (a rule drawing counter-based random numbers keyed by
+cell and step is such a family). A map of models <code>M → N</code> is a
+map of cell states <code>h : M.A → N.A</code> that commutes with the
+rules: the next state of <code>M</code>, mapped by <code>h</code>, is
+the next state of <code>N</code> from the mapped neighbours, at every
+time and cell. It forgets what does not feed back (a lineage label
+carried along, the colours of the immigration game), and it sends every
+run of <code>M</code> to the run of <code>N</code> from the mapped
+initial state (<code>ModelMap.run_map</code>).</p>
+<p>The package’s <code>ModelMap(dom, codom, h)</code> is such a map (its
+parameter map is absorbed here into the rules, which are the models’
+rules at given parameters), <code>is_model_map</code> checks the
+commuting condition on every local configuration, and
+<code>pushforward(f, prob)</code> maps a problem. Models and their maps
+form a category, and pulling back along a map of spaces is a functor
+between the categories of models on the two spaces
+(<code>SpaceMap.pullFunctor</code>): maps of models and maps of spaces
+commute.</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="kw">open</span> CategoryTheory</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {X Y : <span class="kw">Type</span> u}</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A model on the cells `X`: cell states and a time- and cell-dependent rule. -/</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> CAModel (X : <span class="kw">Type</span> u) <span class="kw">where</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the cell states -/</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  A : <span class="kw">Type</span> u</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the rule at time `t` and cell `c`, reading the neighbours&#39; states in slot order -/</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>  μ : ℕ → X → List A → A</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of models: a map of cell states commuting with the rules. -/</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="at">@[ext]</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> ModelMap (M N : CAModel X) <span class="kw">where</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the map of cell states, applied cell by cell -/</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>  h : M.A → N.A</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the next state, mapped, is the next state from the mapped neighbours -/</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>  comm : ∀ t c l, h (M.μ t c l) = N.μ t c (l.map h)</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {nbrs : X → List X}</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="do">/-- One step of the codomain from a mapped configuration is the mapped step. -/</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> ModelMap.step_map {M N : CAModel X} (f : ModelMap M N) (t : ℕ) (x : X → M.A) :</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>    step nbrs (N.μ t) (f.h ∘ x) = f.h ∘ step nbrs (M.μ t) x := <span class="kw">by</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> c</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [step, Function.comp_apply, f.comm, List.map_map]</span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Maps of models send runs to runs.** The run of the codomain from the mapped initial</span></span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a><span class="do">state is, at every step, the run of the domain mapped cell by cell. -/</span></span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> ModelMap.run_map {M N : CAModel X} (f : ModelMap M N) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>    run nbrs N.μ (f.h ∘ x) n = f.h ∘ run nbrs M.μ x n := <span class="kw">by</span></span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">rfl</span></span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt; <span class="cf">simp</span> only [run, ih, ModelMap.step_map]</span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The identity map of a model. -/</span></span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ModelMap.id (M : CAModel X) : ModelMap M M <span class="kw">where</span></span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a>  h a := a</span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a>  comm t c l := <span class="kw">by</span> <span class="cf">simp</span></span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of models followed by another. -/</span></span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> ModelMap.comp {M N P : CAModel X} (f : ModelMap M N) (g : ModelMap N P) :</span>
+<span id="cb18-47"><a href="#cb18-47" aria-hidden="true" tabindex="-1"></a>    ModelMap M P <span class="kw">where</span></span>
+<span id="cb18-48"><a href="#cb18-48" aria-hidden="true" tabindex="-1"></a>  h := g.h ∘ f.h</span>
+<span id="cb18-49"><a href="#cb18-49" aria-hidden="true" tabindex="-1"></a>  comm t c l := <span class="kw">by</span> <span class="cf">simp</span> only [Function.comp_apply, f.comm, g.comm, List.map_map]</span>
+<span id="cb18-50"><a href="#cb18-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-51"><a href="#cb18-51" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Models on `X` and the maps between them form a category. -/</span></span>
+<span id="cb18-52"><a href="#cb18-52" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> instCategoryCAModel : Category.{u} (CAModel X) <span class="kw">where</span></span>
+<span id="cb18-53"><a href="#cb18-53" aria-hidden="true" tabindex="-1"></a>  Hom M N := ModelMap M N</span>
+<span id="cb18-54"><a href="#cb18-54" aria-hidden="true" tabindex="-1"></a>  id M := ModelMap.id M</span>
+<span id="cb18-55"><a href="#cb18-55" aria-hidden="true" tabindex="-1"></a>  comp f g := ModelMap.comp f g</span>
+<span id="cb18-56"><a href="#cb18-56" aria-hidden="true" tabindex="-1"></a>  id_comp _ := <span class="cf">rfl</span></span>
+<span id="cb18-57"><a href="#cb18-57" aria-hidden="true" tabindex="-1"></a>  comp_id _ := <span class="cf">rfl</span></span>
+<span id="cb18-58"><a href="#cb18-58" aria-hidden="true" tabindex="-1"></a>  assoc _ _ _ := <span class="cf">rfl</span></span>
+<span id="cb18-59"><a href="#cb18-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-60"><a href="#cb18-60" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {nbrsY : Y → List Y} {nbrsX : X → List X}</span>
+<span id="cb18-61"><a href="#cb18-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-62"><a href="#cb18-62" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A model moved along a map of spaces: each cell runs its image&#39;s rule on its neighbours in</span></span>
+<span id="cb18-63"><a href="#cb18-63" aria-hidden="true" tabindex="-1"></a><span class="do">the image&#39;s slot order (`pullback(f, prob; space)`). -/</span></span>
+<span id="cb18-64"><a href="#cb18-64" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SpaceMap.pullModel (f : SpaceMap Y X nbrsY nbrsX) (M : CAModel X) : CAModel Y <span class="kw">where</span></span>
+<span id="cb18-65"><a href="#cb18-65" aria-hidden="true" tabindex="-1"></a>  A := M.A</span>
+<span id="cb18-66"><a href="#cb18-66" aria-hidden="true" tabindex="-1"></a>  μ t := f.pullRule (M.μ t)</span>
+<span id="cb18-67"><a href="#cb18-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-68"><a href="#cb18-68" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of models is a map of the models moved along a map of spaces: the slot reordering</span></span>
+<span id="cb18-69"><a href="#cb18-69" aria-hidden="true" tabindex="-1"></a><span class="do">moves entries by position, so it commutes with mapping them. -/</span></span>
+<span id="cb18-70"><a href="#cb18-70" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SpaceMap.pullMap (f : SpaceMap Y X nbrsY nbrsX) {M N : CAModel X} (F : ModelMap M N) :</span>
+<span id="cb18-71"><a href="#cb18-71" aria-hidden="true" tabindex="-1"></a>    ModelMap (f.pullModel M) (f.pullModel N) <span class="kw">where</span></span>
+<span id="cb18-72"><a href="#cb18-72" aria-hidden="true" tabindex="-1"></a>  h := F.h</span>
+<span id="cb18-73"><a href="#cb18-73" aria-hidden="true" tabindex="-1"></a>  comm t y l := <span class="kw">by</span></span>
+<span id="cb18-74"><a href="#cb18-74" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> only [SpaceMap.pullModel, SpaceMap.pullRule, F.comm, f.ρ_natural]</span>
+<span id="cb18-75"><a href="#cb18-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-76"><a href="#cb18-76" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Moving models along a map of spaces is a functor** from the models on `X` to the models</span></span>
+<span id="cb18-77"><a href="#cb18-77" aria-hidden="true" tabindex="-1"></a><span class="do">on `Y`: maps of models and maps of spaces commute. -/</span></span>
+<span id="cb18-78"><a href="#cb18-78" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> SpaceMap.pullFunctor (f : SpaceMap Y X nbrsY nbrsX) : CAModel X ⥤ CAModel Y <span class="kw">where</span></span>
+<span id="cb18-79"><a href="#cb18-79" aria-hidden="true" tabindex="-1"></a>  obj := f.pullModel</span>
+<span id="cb18-80"><a href="#cb18-80" aria-hidden="true" tabindex="-1"></a>  map F := f.pullMap F</span>
+<span id="cb18-81"><a href="#cb18-81" aria-hidden="true" tabindex="-1"></a>  map_id _ := <span class="cf">rfl</span></span>
+<span id="cb18-82"><a href="#cb18-82" aria-hidden="true" tabindex="-1"></a>  map_comp _ _ := <span class="cf">rfl</span></span>
+<span id="cb18-83"><a href="#cb18-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-84"><a href="#cb18-84" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 </body>
 </html>

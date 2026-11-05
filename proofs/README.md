@@ -52,3 +52,7 @@ JuliaMono read from `../../fonts/JuliaMono/`.
 9. `Spaces.lean`: a problem moved along a map of spaces (each cell reading its neighbours in
    its image's slot order and running its image's time-dependent rule) runs, step by step, the
    pullback of the original run, for every rule; coverings and reversing folds are instances.
+10. `Models.lean`: models on a space and the maps between them (maps of cell states commuting
+   with the rules) form a category; a map of models sends every run to the run from the mapped
+   initial state; moving models along a map of spaces is a functor, so maps of models and maps
+   of spaces commute.

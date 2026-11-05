@@ -1,0 +1,252 @@
+# Maps between models. A map from a CellularAutomataCore model M to a model N is a map `h` of cell
+# states (applied cell by cell) with a map of parameters, such that one step of N from `h` of a
+# state is `h` of one step of M: `h(F_M(c, nbrs, ctx)) == F_N(h(c), h.(nbrs), ctx')`, where `ctx'`
+# has the mapped parameters and the same cell, time and seed. Such a map sends runs of M to runs of
+# N, step by step, and for stochastic models pathwise: both models draw the same counter-based
+# random numbers. Models and these maps form a category; pulling back along a map of spaces is a
+# functor on it, so maps of models and maps of spaces commute.
+
+"""
+    ModelMap(dom, codom, h; parameters=nothing)
+
+A map from the CellularAutomataCore `CAModel` `dom` to the model `codom`: `h`
+sends a cell state of `dom` (a value, or a `NamedTuple` with one field per
+state variable if `dom` has several) to a cell state of `codom`, and
+`parameters` sends the parameters of a problem of `dom` to those of `codom`
+(by default, each parameter of `codom` takes the value of the parameter of the
+same name, or its default). A research extension, beyond the papers.
+
+It is a map of models when it commutes with the rules: for every cell, its
+neighbours and its `CellularAutomataCore.CellContext`, the next state of
+`dom` mapped by `h` is the next state of `codom` from the mapped cell and
+neighbours, with the mapped parameters and the same cell id, time and seed,
+so the same random numbers ([`is_model_map`](@ref)). Then every run of `dom`
+mapped by `h` is the run of `codom` from the mapped initial state
+([`pushforward`](@ref pushforward(::ModelMap, ::Any))), exactly, for deterministic and stochastic models. Such
+maps forget what does not feed back on the rest: a label carried along (which
+introduction a case descends from, the colours of the immigration game), or a
+layer that only records.
+
+Models and the maps between them form a category
+([`compose`](@ref compose(::ModelMap, ::ModelMap))).
+"""
+struct ModelMap{H,P}
+    dom::CAC.CAModel
+    codom::CAC.CAModel
+    h::H
+    parameters::P
+end
+function ModelMap(dom::CAC.CAModel, codom::CAC.CAModel, h; parameters=nothing)
+    π = parameters === nothing ? _shared_parameters(codom) : parameters
+    return ModelMap(dom, codom, h, π)
+end
+
+function Base.show(io::IO, f::ModelMap)
+    return print(io, "ModelMap(", f.dom.name, " → ", f.codom.name, ")")
+end
+
+# The default map of parameters: each parameter of the codomain by name, or its default.
+struct _SharedParameters
+    names::Vector{Symbol}
+    defaults::NamedTuple
+end
+function _shared_parameters(m::CAC.CAModel)
+    return _SharedParameters([p.name for p in m.parameters],
+                             CAC.defaults(m))
+end
+function (s::_SharedParameters)(p)
+    isempty(s.names) && return CAC.NullParameters()
+    given = p isa NamedTuple ? p : (;)
+    return NamedTuple{Tuple(s.names)}(Tuple(get(given, n, getfield(s.defaults, n))
+                                            for n in s.names))
+end
+
+# The cells of a state of `model` as an array of cell values, and back.
+_names(m::CAC.CAModel) = Tuple(s.name for s in m.states)
+function _cell_values(m::CAC.CAModel, u)
+    length(m.states) == 1 && return u
+    names = _names(m)
+    return map((xs...) -> NamedTuple{names}(xs), (getfield(u, n) for n in names)...)
+end
+function _from_cell_values(m::CAC.CAModel, cells::AbstractArray)
+    if length(m.states) == 1
+        T = typeof(only(m.states).default)
+        return convert(Array{T}, map(c -> convert(T, c), cells))
+    end
+    layers = map(m.states) do s
+        T = typeof(s.default)
+        return convert(Array{T}, map(c -> convert(T, getfield(c, s.name)), cells))
+    end
+    return NamedTuple{_names(m)}(Tuple(layers))
+end
+
+"""
+    pushforward(f::ModelMap, u)
+    pushforward(f::ModelMap, prob::CAProblem) -> CAProblem
+
+The state `u` of a problem of `f`'s domain mapped by `f`, cell by cell: a
+state of its codomain. The second form maps a problem of the domain (built
+from it with `CAProblem(model, ...)`, possibly pulled back along maps of spaces
+since) to the problem of the codomain on the same space, from the mapped
+initial state, with the mapped parameters and the same seed, time span,
+covariates, mask and solver keywords. When `f` is a map of models
+([`is_model_map`](@ref)), the solution of the new problem is the original
+solution mapped by `f`, state by state.
+
+A problem whose rule is not the domain's raises [`DomainMismatchError`](@ref);
+a mapped initial state outside a state variable's domain raises
+`CellularAutomataCore.InvalidStateError`, and a missing covariate of the
+codomain an `ArgumentError`.
+"""
+function pushforward(f::ModelMap, u)
+    cells = _cell_values(f.dom, u)
+    return _from_cell_values(f.codom, map(f.h, cells))
+end
+
+# The codomain's rule in place of the domain's, inside any pullbacks along maps of spaces.
+function _retarget(rule, f::ModelMap)
+    rule === f.dom.rule && return f.codom.rule
+    rule isa _PulledBackRule &&
+        return _PulledBackRule(_retarget(rule.rule, f), rule.map, rule.order)
+    return throw(DomainMismatchError("pushing a problem forward along a map of models (the problem's rule)",
+                                     f.dom.rule, rule))
+end
+
+function pushforward(f::ModelMap, prob::CAC.CAProblem)
+    rule = _retarget(prob.rule, f)
+    u0 = pushforward(f, prob.u0)
+    layers = length(f.codom.states) == 1 ? (u0,) : values(u0)
+    for (s, a) in zip(f.codom.states, layers)
+        s.domain === nothing && continue
+        i = findfirst(x -> !(x in s.domain), a)
+        i === nothing ||
+            throw(CAC.InvalidStateError("model $(f.codom.name)", i, a[i],
+                                        "state $(s.name) must lie in $(s.domain)"))
+    end
+    for c in f.codom.covariates
+        haskey(prob.covariates, c) ||
+            throw(ArgumentError("model $(f.codom.name) needs covariate $c, which the problem does not have"))
+    end
+    user = Base.structdiff(prob.field_specs, merge(CAC.fields(prob.rule), f.dom.fields))
+    return CAC.CAProblem(rule, u0, prob.tspan, f.parameters(prob.p); space=prob.space,
+                         seed=prob.seed, covariates=prob.covariates,
+                         fields=merge(f.codom.fields, user), mask=prob.mask,
+                         prob.kwargs...)
+end
+
+# The cell values of a model with a finite domain for every state variable.
+function _domain_values(m::CAC.CAModel)
+    for s in m.states
+        s.domain === nothing &&
+            throw(ArgumentError("state $(s.name) of model $(m.name) has no domain; give the cell values to check with `cells`"))
+    end
+    length(m.states) == 1 && return collect(only(m.states).domain)
+    names = _names(m)
+    return vec([NamedTuple{names}(Tuple(c))
+                for c in Iterators.product((s.domain for s in m.states)...)])
+end
+
+# The numbers of neighbours a model's cells have on `space`.
+function _neighbour_counts(m::CAC.CAModel, space, dims)
+    n = CAC.neighbourhood(m.rule)
+    n === nothing &&
+        throw(ArgumentError("the rule of $(m.name) must name its neighbourhood to be checked"))
+    if n isa CAC.GraphNeighbours
+        space isa CAC.GraphSpace ||
+            throw(ArgumentError("model $(m.name) reads a graph; give the GraphSpace with `space`"))
+        return sort(unique(length.(space.neighbours)))
+    end
+    lattice = space === nothing ? CAC.Torus(ntuple(_ -> 201, dims)...) : _large(space)
+    return [length(CAC.neighbourhood_offsets(n, lattice))]
+end
+
+"""
+    is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts=8, space=nothing, dims=2) -> Bool
+
+Whether `f` commutes with the rules of its domain and codomain: for every cell
+state and every list of neighbour states drawn from `cells` (by default every
+combination of the values in the domains of `f.dom`'s state variables), and
+for `contexts` cell contexts (cell ids, times and seeds `1:contexts`, with the
+domain's parameters `p`, by default its defaults, and the codomain's
+`f.parameters(p)`), the domain's next state mapped by `f` equals the
+codomain's next state from the mapped cell and neighbours. This is a check of
+every local configuration, so for a deterministic rule that does not read the
+cell context a `true` proves that `f` is a map of models; for a stochastic
+rule it checks the random numbers on those contexts.
+
+The number of neighbours comes from the domain's neighbourhood on a square
+lattice of `dims` dimensions, or on `space` (a `GraphSpace` for a model that
+reads a graph: every degree that occurs is checked). The number of local
+configurations checked must stay below `PATTERN_LIMIT`, or `ArgumentError` is
+raised. Models that read covariates or kernel fields are checked by running
+them instead: compare a solution mapped by `f` with the solution of
+[`pushforward`](@ref pushforward(::ModelMap, ::Any)).
+"""
+function is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts::Integer=8,
+                      space=nothing, dims::Integer=2)
+    for m in (f.dom, f.codom)
+        isempty(m.covariates) && isempty(m.fields) ||
+            throw(ArgumentError("model $(m.name) reads covariates or kernel fields; check it by running it (pushforward)"))
+    end
+    vals = cells === nothing ? _domain_values(f.dom) : collect(cells)
+    ks = _neighbour_counts(f.dom, space, dims)
+    total = sum(k -> big(length(vals))^(k + 1), ks) * contexts
+    total <= PATTERN_LIMIT ||
+        throw(ArgumentError("checking $f needs $total local configurations, more than PATTERN_LIMIT = $PATTERN_LIMIT"))
+    pdom = p === nothing ?
+           (isempty(f.dom.parameters) ? CAC.NullParameters() :
+            CAC.defaults(f.dom)) : p
+    pcod = f.parameters(pdom)
+    mapped = Dict(v => f.h(v) for v in vals)
+    for i in 1:contexts, k in ks
+        cdom = CAC.CellContext(pdom, CartesianIndex(1, 1), i, i, UInt64(i))
+        ccod = CAC.CellContext(pcod, CartesianIndex(1, 1), i, i, UInt64(i))
+        for pattern in Iterators.product(ntuple(_ -> vals, k + 1)...)
+            cell, nbrs = first(pattern), Base.tail(pattern)
+            next = f.h(CAC.local_rule(f.dom.rule, cell, nbrs, cdom))
+            other = CAC.local_rule(f.codom.rule, mapped[cell], map(c -> mapped[c], nbrs),
+                                   ccod)
+            isequal(next, other) || return false
+        end
+    end
+    return true
+end
+
+const _Model = CAC.CAModel
+
+function _model_id(m::CAC.CAModel)
+    return ModelMap(m, m, identity, identity)
+end
+
+# f then g: states and parameters go through both maps.
+function _model_compose(f::ModelMap, g::ModelMap)
+    f.codom === g.dom ||
+        throw(DomainMismatchError("composing maps of models", f.codom.name, g.dom.name))
+    return ModelMap(f.dom, g.codom, g.h ∘ f.h, g.parameters ∘ f.parameters)
+end
+
+@instance ThCategory{_Model,ModelMap} begin
+    dom(f::ModelMap) = f.dom
+    codom(f::ModelMap) = f.codom
+    id(m::CAC.CAModel) = _model_id(m)
+    compose(f::ModelMap, g::ModelMap) = _model_compose(f, g)
+end
+
+"""
+    compose(f::ModelMap, g::ModelMap) -> ModelMap
+    id(m::CAModel) -> ModelMap
+
+CellularAutomataCore models and the maps between them form a category, an
+instance of Catlab's `ThCategory`: `compose(f, g)` is `f` followed by `g`
+(cell states and parameters go through both maps), raising
+[`DomainMismatchError`](@ref) unless the codomain of `f` is the domain of `g`
+(the same model object); `id(m)` is the identity of `m`. Composites of maps of
+models are maps of models, and pushing a problem forward along
+`compose(f, g)` is pushing it along `f`, then `g`.
+
+Pulling back along a map of spaces ([`pullback`](@ref
+pullback(::SpaceMorphism, ::CellularAutomataCore.CAProblem))) is a functor on
+this category: pushing a pulled-back problem forward along a map of models
+gives the pullback of the pushed-forward problem, with the same solutions.
+"""
+compose(::ModelMap, ::ModelMap)

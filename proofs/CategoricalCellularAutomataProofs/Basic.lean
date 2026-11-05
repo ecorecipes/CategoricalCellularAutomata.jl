@@ -29,6 +29,9 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `gluedConfigEquiv`, `exists_unique_glued_config` | `glue` | configurations of a glued space are the compatible families on its patches (a limit) |
 | `step_restrict`, `step_eq_of_cover` | `glue`, `apply_local` | the landscape's step on a patch's interior is the patch's step |
 | `SpaceMap`, `SpaceMap.run_pullback` | `SpaceMorphism`, `pullback(f, prob; space)` | a problem moved along a map of spaces (slots reordered, the image's rule and random numbers) runs the pullback of the original run |
+| `CAModel`, `ModelMap`, `instCategoryCAModel` | `CAModel`, `ModelMap`, `compose`, `id`, `is_model_map` | models and the maps of cell states commuting with their rules form a category |
+| `ModelMap.run_map` | `pushforward(f, prob)` | a map of models sends every run to the run from the mapped initial state |
+| `SpaceMap.pullFunctor` | `pullback(f, prob; space)`, `pushforward` | moving models along a map of spaces is a functor: maps of models and of spaces commute |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
 main theorem uses (only `propext`, `Classical.choice` and `Quot.sound` are expected).

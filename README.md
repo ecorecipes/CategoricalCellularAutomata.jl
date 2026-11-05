@@ -37,14 +37,18 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` �
   as a fold of a doubled torus), whole problems moved along such maps (`pullback(f, prob; space)`, random
   numbers included, for any rule), constant edges as pinned cells; and landscapes glued from patches:
   spaces as C-sets of cells and neighbour slots, lattice patches with halos, gluing as a colimit along
-  undirected wiring diagrams (`glue`), on which a local rule restricts to each patch.
+  undirected wiring diagrams (`glue`), on which a local rule restricts to each patch; and maps between
+  models: maps of cell states commuting with two models' rules (`ModelMap`, checked on every local
+  configuration by `is_model_map`), which send every run to a run, stochastic ones included
+  (`pushforward`), form a category, and commute with moving models between spaces.
 - **Formal proofs**: a Lean 4 / Mathlib library in [`proofs/`](proofs/README.md) proves, for any group and
   alphabet, the laws the test suite checks numerically: shifts and pullbacks, equivariance and equality at
   the identity, composition and pairing, the cartesian monoidal category of cellular automata,
   Curtis–Hedlund–Lyndon (with the finite-group converse), linear automata composing as group-algebra
   products, factorisation of generalised automata and pullback commuting with local rules, gluing
   (configurations of a glued space form a limit; a landscape's step on a patch is the patch's step), and
-  problems moved along maps of spaces running the pullback of the original run.
+  problems moved along maps of spaces running the pullback of the original run, and the category of
+  models whose maps send runs to runs, on which moving along a map of spaces is a functor.
 
 ## Quick Start
 
@@ -92,6 +96,7 @@ Requires Julia ≥ 1.12.
 | 10 | [Composing models over shared layers](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/10_composing_models/10_composing_models.md) | Research extension: crop, aphid and spraying models composed with `@relation` and `oapply` |
 | 11 | [Geometries](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/11_geometries/11_geometries.md) | Research extension: square and hexagonal tori as Cayley spaces, periodic and reflecting edges as quotients, constant edges as pinned cells, graphs, composites on any geometry, and moving a model between spaces |
 | 12 | [Gluing spaces](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/12_gluing_spaces/12_gluing_spaces.md) | Research extension: landscapes as colimits of patches (strips, cylinders, tori, blocks), gluing in stages, dynamics restricted to patches, and fields joined by a road |
+| 13 | [Maps between models](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/13_model_maps/13_model_maps.md) | Research extension: the immigration game as Life with colours, tracing introductions of a disease, labels that feed back, the category of models, parameters of composites, and maps of spaces |
 
 Each vignette is also published as a tutorial in the
 [documentation](https://ecorecipes.github.io/CategoricalCellularAutomata.jl/); the sources are the `.qmd` files in

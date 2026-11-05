@@ -44,6 +44,13 @@ the `references.bib` files here are synced copies.
   `pullback(f, prob; space)` moves a whole problem: each cell runs its image's rule with its image's slot
   order and cell id (so its random numbers), and tests check every saved state equals the pulled-back
   original run, for stochastic and anisotropic rules, layered states, covariates, masks and graphs.
+- Maps between models (`src/model_maps.jl`): a `ModelMap` is a map of cell states (and of parameters) between
+  two `CAModel`s; it is a map of models when it commutes with the rules at the same cell id, time and seed, so
+  runs map to runs exactly, stochastic ones included. `is_model_map` checks every local configuration (finite
+  domains, or `cells`) at several contexts; `pushforward(f, prob)` keeps seed, space, covariates and mask and
+  passes through `pullback`s along maps of spaces. Models and maps are an `@instance ThCategory{CAModel,
+  ModelMap}` (objects compared with `===`). Tests compare mapped runs with the codomain's runs exactly, and
+  include maps that must fail (a label that feeds back, a composite without shared random numbers).
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with
   discrete feet. `glue` computes colimits by union-find (feet are cells, so slots are never identified);
   `algorithm=:catlab` uses Catlab's `oapply` and the tests check the two agree. Glued landscapes are tested
@@ -62,7 +69,7 @@ the `references.bib` files here are synced copies.
 
 - `src/CategoricalCellularAutomata.jl`: module docstring, exports, includes.
 - `proofs/`: the Lean library (`CategoricalCellularAutomataProofs/{Basic,Configurations,CellularAutomata,
-  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
+  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces,Models}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
   generated document; `.github/workflows/lean.yml` builds and audits it.
 - `src/errors.jl`: the root `CategoricalCellularAutomataError` and every exception under it.
 - `src/groups.jl`: `CyclicGroup`, `TorusGroup`, `FiniteGroup`. `src/configurations.jl`: `FinAlphabet`,
@@ -77,12 +84,13 @@ the `references.bib` files here are synced copies.
   `distribution`, `marginal`, `stochastic_pair`, core sampling) and `src/composition.jl` (`OpenCAModel`,
   `oapply` for core `CAModel`s over undirected wiring diagrams, on square or hexagonal lattices and graphs)
   and `src/spaces.jl` (`NeighbourhoodSpace` from any core space, `SpaceMorphism`, `pullback`, `covering`,
-  `reflection_fold`, `cayley_space`) and `src/gluing.jl` (`SlotGraph`, `lattice_patch`, `glue`).
+  `reflection_fold`, `cayley_space`) and `src/gluing.jl` (`SlotGraph`, `lattice_patch`, `glue`) and `src/model_maps.jl` (`ModelMap`,
+  `is_model_map`, `pushforward` of states and problems, the category of models).
 - `test/runtests.jl`, `test/test_groups.jl`, `test/test_cartesian.jl` (category and product laws with random
   lookup-table rules), `test/test_chl_bridge.jl`, `test/test_generalized.jl` (homomorphisms, free
   products, generalised, linear and monotone automata), `test/test_markov.jl` (the research
   extensions), `test/test_spaces.jl` (geometries and composites on them), `test/test_gluing.jl` (landscapes glued
-  from patches), `test/test_errors.jl`,
+  from patches), `test/test_model_maps.jl` (maps between models), `test/test_errors.jl`,
   `test/test_docstrings.jl`: the suite,
   seeded RNGs only.
 

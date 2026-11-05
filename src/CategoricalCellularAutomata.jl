@@ -53,6 +53,8 @@ export LinearCA, coefficients, isinvertible, is_monotone
 # Research extensions: stochastic cellular automata, and composition of core models
 export StochasticCA, distribution, marginal, stochastic_pair
 export OpenCAModel, oapply
+# Research extension: maps between models, a category
+export ModelMap, is_model_map
 # CellularAutomataCore
 export torus_group, torus_space
 # Geometries: neighbourhood spaces and the maps between them
@@ -80,5 +82,6 @@ include("linear.jl")
 include("monotone.jl")
 include("markov.jl")
 include("composition.jl")
+include("model_maps.jl")
 
 end # module
