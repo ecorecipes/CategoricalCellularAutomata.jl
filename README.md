@@ -41,7 +41,7 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
   models: maps of cell states commuting with two models' rules (`ModelMap`, checked on every local
   configuration by `is_model_map`), which send every run to a run, stochastic ones included
   (`pushforward`), form a category, and commute with moving models between spaces; quotients that need no
-  rule of their own (`quotient`, `forget_layers`).
+  rule or callback of their own (`quotient`, `forget_layers`, `callback=:lift`).
 - **Formal proofs**: a Lean 4 / Mathlib library in [`proofs/`](proofs/README.md) proves, for any group and
   alphabet, the laws the test suite checks numerically: shifts and pullbacks, equivariance and equality at
   the identity, composition and pairing, the cartesian monoidal category of cellular automata,
@@ -49,7 +49,8 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
   products, factorisation of generalised automata and pullback commuting with local rules, gluing
   (configurations of a glued space form a limit; a landscape's step on a patch is the patch's step), and
   problems moved along maps of spaces running the pullback of the original run, and the category of
-  models whose maps send runs to runs, on which moving along a map of spaces is a functor.
+  models whose maps send runs to runs, on which moving along a map of spaces is a functor, and quotients of
+  models with their universal property, callbacks included.
 
 ## Quick Start
 
@@ -98,7 +99,7 @@ Requires Julia â‰¥ 1.12.
 | 11 | [Geometries](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/11_geometries/11_geometries.md) | Research extension: square and hexagonal tori as Cayley spaces, periodic and reflecting edges as quotients, constant edges as pinned cells, graphs, composites on any geometry, and moving a model between spaces |
 | 12 | [Gluing spaces](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/12_gluing_spaces/12_gluing_spaces.md) | Research extension: landscapes as colimits of patches (strips, cylinders, tori, blocks), gluing in stages, dynamics restricted to patches, and fields joined by a road |
 | 13 | [Maps between models](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/13_model_maps/13_model_maps.md) | Research extension: the immigration game as Life with colours, tracing introductions of a disease, labels that feed back, the category of models, parameters of composites, and maps of spaces |
-| 14 | [Maps between zoo models](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/14_zoo_model_maps/14_zoo_model_maps.md) | Research extension: published models from EcologicalCellularAutomata: forgetting record layers, a management model that reduces to its base model, percolation inside a viral front model, and which layers feed back |
+| 14 | [Maps between zoo models](https://github.com/ecorecipes/CategoricalCellularAutomata.jl/blob/main/vignettes/14_zoo_model_maps/14_zoo_model_maps.md) | Research extension: published models from EcologicalCellularAutomata: forgetting record layers, a management model that reduces to its base model, percolation inside a viral front model, quotients of models with callbacks, and what a short run can hide |
 
 Each vignette is also published as a tutorial in the
 [documentation](https://ecorecipes.github.io/CategoricalCellularAutomata.jl/); the sources are the `.qmd` files in

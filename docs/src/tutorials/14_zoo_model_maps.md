@@ -7,8 +7,11 @@ Simon Frost
 - [A management model and its base
   model](#a-management-model-and-its-base-model)
 - [Percolation inside a viral front](#percolation-inside-a-viral-front)
-- [Which layers feed back?](#which-layers-feed-back)
-- [What this does not reach](#what-this-does-not-reach)
+- [Quotients of models with
+  callbacks](#quotients-of-models-with-callbacks)
+- [A short run can hide a
+  dependence](#a-short-run-can-hide-a-dependence)
+- [What a quotient cannot express](#what-a-quotient-cannot-express)
 - [Summary](#summary)
 - [References](#references)
 
@@ -17,7 +20,7 @@ Simon Frost
 The vignette on maps between models used small examples written for the
 purpose. This one tries the same ideas on the published models of
 EcologicalCellularAutomata, where the rules were written for other
-reasons and much of the dynamics lives outside them. Three relations
+reasons and much of the dynamics lives outside them. Several relations
 turn out to hold exactly, and the attempt shows what a map of models
 cannot see.
 
@@ -36,8 +39,7 @@ loads it.
 ENV["GKSwstype"] = "100"
 using CategoricalCellularAutomata
 using EcologicalCellularAutomata
-using CellularAutomataCore: CellularAutomataCore, CAProblem, solve, remake, Torus, Margolus,
-                            Synchronous, DiscreteCallback, CallbackSet
+using CellularAutomataCore: CellularAutomataCore, CAProblem, solve, remake, Torus
 using Catlab: codom
 using Plots
 ```
@@ -165,83 +167,113 @@ and `(π^(1/R))^(R n)` can differ in their last bits, so a draw could in
 principle fall between them, though that has a chance of order `10^-16`
 per draw.
 
-## Which layers feed back?
+## Quotients of models with callbacks
 
-Forgetting a layer is a map only if the layers kept do not depend on it,
-and that can be tested on any problem, callbacks included, without a
-codomain at all: rerun it with the layer reset to its default after
-every step, and see whether anything else changes.
+Fourteen of the zoo’s models do much of their work in callbacks:
+decisions on the whole lattice, dispersal, individuals acting one at a
+time. A callback reads the whole state, so forgetting a layer needs a
+callback for the smaller state, and `callback=:lift` builds it. After
+each step the state is lifted, with the forgotten layer at its default,
+the original callback acts on the lifted state, and the result is mapped
+down. The Lean library proves the construction: it commutes exactly when
+the callback does not depend on what is forgotten, and it is then the
+only callback that does (`Lumping.liftCallback`,
+`Lumping.callback_unique`, `Lumping.runWith_quotient`). Whether that
+holds for a given model is what running it tells us:
 
 ``` julia
-function first_feedback(prob, model, layer; alg=Synchronous())
-    d = only(s.default for s in model.states if s.name == layer)
-    erase = DiscreteCallback((u, t, integ) -> true,
-                             integ -> (fill!(getfield(integ.u, layer), d); nothing);
-                             save_positions=(false, false))
-    old = get(prob.kwargs, :callback, nothing)
-    callback = old === nothing ? erase : CallbackSet(old, erase)
-    u0 = merge(prob.u0, NamedTuple{(layer,)}((fill(d, size(getfield(prob.u0, layer))),)))
-    a = solve(prob, alg)
-    b = solve(remake(prob; u0, kwargs=merge(prob.kwargs, (; callback))), alg)
-    kept = filter(!=(layer), keys(prob.u0))
-    t = findfirst(i -> any(k -> !isequal(getfield(a.u[i], k), getfield(b.u[i], k)), kept),
-                  eachindex(a.u))
-    return t === nothing ? "none in $(length(a.u) - 1) steps" : "from step $(a.t[t])"
-end
-function scan(id, layer; kw=(;), alg=Synchronous(), steps=nothing)
-    prob = problem(id; kw...)
-    prob = steps === nothing ? prob : remake(prob; tspan=(prob.tspan[1], steps))
+function forgets(id, layer; kw=(;))
     return (model=id, layer, setting=join(("$k=$v" for (k, v) in pairs(kw) if k != :n), ", "),
-            feedback=first_feedback(prob, build(id), layer; alg))
+            is_map=is_model_map(forget_layers(build(id), layer), problem(id; kw...);
+                                callback=:lift))
 end
-[scan(:tuta_absoluta_asia, :reached), scan(:tuta_absoluta_asia, :land),
- scan(:cassava_mealybug, :loss), scan(:pine_wilt_casim, :years),
- scan(:eab_management, :large; kw=(; n=40)),
- scan(:eab_management, :large; kw=(; n=40, treatment=:girdling)),
- scan(:eab_management, :phloem0; kw=(; n=40)),
- scan(:eab_management, :phloem0; kw=(; n=40, stress_bias=true))]
+[forgets(:cassava_mealybug, :loss), forgets(:cassava_mealybug, :since),
+ forgets(:potato_moth_farmers, :source), forgets(:potato_moth_farmers, :carriers),
+ forgets(:western_x_orchard, :age), forgets(:western_x_orchard, :clock),
+ forgets(:eab_management, :large; kw=(; n=40)),
+ forgets(:eab_management, :large; kw=(; n=40, treatment=:girdling)),
+ forgets(:eab_management, :phloem0; kw=(; n=40)),
+ forgets(:eab_management, :phloem0; kw=(; n=40, stress_bias=true))]
 ```
 
-    8-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, feedback::String}}:
-     (model = :tuta_absoluta_asia, layer = :reached, setting = "", feedback = "none in 300 steps")
-     (model = :tuta_absoluta_asia, layer = :land, setting = "", feedback = "from step 1")
-     (model = :cassava_mealybug, layer = :loss, setting = "", feedback = "none in 360 steps")
-     (model = :pine_wilt_casim, layer = :years, setting = "", feedback = "from step 4")
-     (model = :eab_management, layer = :large, setting = "", feedback = "none in 15 steps")
-     (model = :eab_management, layer = :large, setting = "treatment=girdling", feedback = "from step 1")
-     (model = :eab_management, layer = :phloem0, setting = "", feedback = "none in 15 steps")
-     (model = :eab_management, layer = :phloem0, setting = "stress_bias=true", feedback = "from step 3")
+    10-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, is_map::Bool}}:
+     (model = :cassava_mealybug, layer = :loss, setting = "", is_map = 1)
+     (model = :cassava_mealybug, layer = :since, setting = "", is_map = 0)
+     (model = :potato_moth_farmers, layer = :source, setting = "", is_map = 1)
+     (model = :potato_moth_farmers, layer = :carriers, setting = "", is_map = 0)
+     (model = :western_x_orchard, layer = :age, setting = "", is_map = 1)
+     (model = :western_x_orchard, layer = :clock, setting = "", is_map = 0)
+     (model = :eab_management, layer = :large, setting = "", is_map = 1)
+     (model = :eab_management, layer = :large, setting = "treatment=girdling", is_map = 0)
+     (model = :eab_management, layer = :phloem0, setting = "", is_map = 1)
+     (model = :eab_management, layer = :phloem0, setting = "stress_bias=true", is_map = 0)
 
-The scan agrees with the maps found above: `large` matters once there is
-a treatment, and `phloem0` only with the stress bias. The cassava
-mealybug’s `loss` layer only records.
+Each `true` has a reason in the model’s code. The mealybug’s `loss` is
+written by the rule and read only by a summary of the yield. The potato
+moth’s `source`, the origin of a cell’s moths, is the published
+counterpart of the lineage label in the previous vignette: it is copied
+from a neighbour or set when a farmer’s team brings moths in, and it
+never decides anything. In the western X orchard, `age` sets yields and
+costs in the economic summary but not the epidemic. The ash borer’s
+layers show that the answer belongs to the problem as well as the model:
+`large` matters once there is a treatment, and `phloem0` only under the
+stress bias.
 
-A “none” is evidence about one problem over one span, and the span
-matters. The three-layer Bt crop model keeps a Penna genome for each
-enemy, which acts only as individuals age. Over 40 steps forgetting it
-looks harmless, and over the source’s full run it is not:
+## A short run can hide a dependence
+
+A `false` disproves a map, but a `true` holds only for the problem and
+the span that was run. The grapevine leafroll model has an `age` layer,
+and forgetting it looks harmless at first:
 
 ``` julia
-[scan(:bt_crop_three_layer, :enemy_genome; alg=Margolus(), steps=40),
- scan(:bt_crop_three_layer, :enemy_genome; alg=Margolus())]
+vine = problem(:grapevine_leafroll)
+forget_age = forget_layers(build(:grapevine_leafroll), :age)
+full = solve(vine)
+down = solve(pushforward(forget_age, vine; callback=:lift))
+(first_month_that_differs=full.t[findfirst(i -> pushforward(forget_age, full.u[i]) !=
+                                                down.u[i], eachindex(full.u))],
+ months=vine.tspan[2],
+ is_map_over=map(T -> T => is_model_map(forget_age, remake(vine; tspan=(0, T));
+                                        callback=:lift), (40, 60, 100, 600)))
 ```
 
-    2-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, feedback::String}}:
-     (model = :bt_crop_three_layer, layer = :enemy_genome, setting = "", feedback = "none in 40 steps")
-     (model = :bt_crop_three_layer, layer = :enemy_genome, setting = "", feedback = "from step 47")
+    (first_month_that_differs = 61, months = 600, is_map_over = (40 => true, 60 => true, 100 => false, 600 => false))
 
-## What this does not reach
+How long an exposed vine takes to become infective depends on whether it
+is younger than 60 months, and the lift makes every vine a new one, so
+the two runs agree until the first vines come of age. No run shorter
+than that could tell them apart.
 
-- A layer that never leaves its default passes this scan vacuously. Many
-  zoo layers are like that at their default settings (`rogued` and
-  `tested` in the grapevine model, for example), and that says nothing
-  about the runs that use them.
-- Models with callbacks can be scanned, but `forget_layers` gives no
-  codomain for them. A callback reads the whole state, and the quotient
-  has no general way to lift it. So the mealybug’s `loss` layer has no
-  map yet, though it passes the scan. The ash borer works because the
-  base model has a callback of its own.
-- The dune model with `speedup = 0` is not an example. It is one model
+## What a quotient cannot express
+
+Some layers matter within a step and not between steps. The ash borer’s
+`larvae1` is written by the rule and read by the callback in the same
+step, and the next rule overwrites it without reading it, so what a
+saved state holds in that layer is never used. Even so, forgetting it is
+not a map of this kind:
+
+``` julia
+forgets(:emerald_ash_borer, :larvae1; kw=(; n=41))
+```
+
+    (model = :emerald_ash_borer, layer = :larvae1, setting = "", is_map = false)
+
+The quotient maps down between the rule and the callback, so the larvae
+are gone before the callback can see them. A map here would have to
+treat the rule and the callback as one step, which `forget_layers` does
+not do.
+
+Other limits:
+
+- A layer that never leaves its default passes vacuously. `rogued` and
+  `tested` in the grapevine model are like that at its default settings,
+  which says nothing about the runs that use them.
+- Block rules, such as the three-layer Bt crop model’s, are not stepped
+  cell by cell, and `quotient` refuses them.
+- A callback may refuse to run on what is left. Forgetting `farmers` in
+  the potato moth model raises the model’s own error, and that is an
+  answer too.
+- The dune model with `speedup = 0` is not an example: it is one model
   at another parameter value, not a second model.
 
 ## Summary
@@ -255,6 +287,9 @@ looks harmless, and over the source’s full run it is not:
 | ash borer management, stress bias → base model | rules; run | rules commute, the run does not |
 | viral front `R = 1` → `R`, no mutation, `π ↦ π^(1/R)` | rules at 2000 contexts; run | a map |
 | the same, with mutation | rules | not a map |
+| mealybug without `loss`, potato moth without `source`, orchard without `age` | run, lifted callback | a map |
+| grapevine without `age` | run, lifted callback | not a map, from month 61 |
+| ash borer without `larvae1` | run, lifted callback | not a map: read between rule and callback |
 
 ## References
 

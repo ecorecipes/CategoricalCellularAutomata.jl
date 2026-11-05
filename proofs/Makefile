@@ -24,7 +24,7 @@ audit:
 # Modules in import (dependency) order, as in $(LIB).lean.
 MD_FILES = \
     Basic.md Configurations.md CellularAutomata.md Category.md CurtisHedlundLyndon.md \
-    Linear.md Generalized.md Gluing.md Spaces.md Models.md
+    Linear.md Generalized.md Gluing.md Spaces.md Models.md Quotients.md
 
 JULIAMONO_DIR = $(abspath ../../fonts/JuliaMono)/
 # pandoc >= 3.8 (older: --highlight-style=tango); lean.xml is our syntax definition (pandoc has none)

@@ -7,14 +7,17 @@
 # functor on it, so maps of models and maps of spaces commute.
 
 """
-    ModelMap(dom, codom, h; parameters=nothing)
+    ModelMap(dom, codom, h; parameters=nothing, section=nothing)
 
 A map from the CellularAutomataCore `CAModel` `dom` to the model `codom`: `h`
 sends a cell state of `dom` (a value, or a `NamedTuple` with one field per
 state variable if `dom` has several) to a cell state of `codom`, and
 `parameters` sends the parameters of a problem of `dom` to those of `codom`
 (by default, each parameter of `codom` takes the value of the parameter of the
-same name, or its default). A research extension, beyond the papers.
+same name, or its default). `section`, if given, lifts a cell state of `codom` to
+one of `dom` (`h(section(b)) == b`), which a callback needs in order to move with
+the map (see [`pushforward`](@ref pushforward(::ModelMap, ::Any))). A research
+extension, beyond the papers.
 
 It is a map of models when it commutes with the rules: for every cell, its
 neighbours and its `CellularAutomataCore.CellContext`, the next state of
@@ -30,15 +33,17 @@ layer that only records.
 Models and the maps between them form a category
 ([`compose`](@ref compose(::ModelMap, ::ModelMap))).
 """
-struct ModelMap{H,P}
+struct ModelMap{H,P,S}
     dom::CAC.CAModel
     codom::CAC.CAModel
     h::H
     parameters::P
+    section::S
 end
-function ModelMap(dom::CAC.CAModel, codom::CAC.CAModel, h; parameters=nothing)
+function ModelMap(dom::CAC.CAModel, codom::CAC.CAModel, h; parameters=nothing,
+                  section=nothing)
     π = parameters === nothing ? _shared_parameters(codom) : parameters
-    return ModelMap(dom, codom, h, π)
+    return ModelMap(dom, codom, h, π, section)
 end
 
 function Base.show(io::IO, f::ModelMap)
@@ -94,9 +99,17 @@ covariates, mask and solver keywords. When `f` is a map of models
 solution mapped by `f`, state by state.
 
 A callback stored with `prob` acts on the domain's whole state, and belongs to
-the domain: a problem with one raises `ArgumentError` unless `callback` gives
-the new problem's (`nothing` for none). The map of models then says nothing
-about it, so check the pair by running both with
+the domain: a problem with one raises `ArgumentError` unless `callback` says
+what the new problem has: its own callback, `nothing` for none, or `:lift`. With
+`:lift` the original callback runs on the codomain, for a map with a `section`
+and identity parameters (every [`quotient`](@ref) has both): after each step
+the state is lifted, the callback acts on the lifted state, and the result is
+mapped down. It sees `integ.u`, `t`, `p`, `alg`, `backend` and `retcode`, and
+`integ.prob` is the original problem, whose seed the new one shares; it may
+reassign `integ.p` and call `terminate!`, `u_modified!` and `add_tstop!`. What
+`h` forgets is filled back in by the section each time, so a callback that
+depends on it, or keeps something there for later, changes the run. A map of
+models says nothing about callbacks, so check the pair by running both with
 [`is_model_map`](@ref).
 
 A problem whose rule is not the domain's raises [`DomainMismatchError`](@ref);
@@ -119,6 +132,7 @@ function _retarget(rule, f::ModelMap)
 end
 
 function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET)
+    callback === :lift && (callback = _lift_callback(f, prob))
     keywords = _moved_keywords(prob, callback,
                                "pushing a problem forward along a map of models")
     rule = _retarget(prob.rule, f)
@@ -136,6 +150,7 @@ function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET)
             throw(ArgumentError("model $(f.codom.name) needs covariate $c, which the problem does not have"))
     end
     user = Base.structdiff(prob.field_specs, merge(CAC.fields(prob.rule), f.dom.fields))
+    f.section === nothing || (user = map(k -> _lift_field(k, f.section), user))
     return CAC.CAProblem(rule, u0, prob.tspan, f.parameters(prob.p); space=prob.space,
                          seed=prob.seed, covariates=prob.covariates,
                          fields=merge(f.codom.fields, user), mask=prob.mask, keywords...)
@@ -195,8 +210,10 @@ checks one problem by running it: it solves `prob` and
 [`pushforward(f, prob; callback)`](@ref pushforward(::ModelMap, ::Any)) with the
 scheme `alg` (and `kwargs`, such as `saveat`), and compares every saved state,
 exactly. It is the check for models that read covariates or kernel fields,
-which the first form refuses, and for callbacks and block rules. A `true` holds
-for that problem.
+which the first form refuses, and for callbacks and block rules. `callback` is
+as for `pushforward`, so `callback=:lift` checks a quotient with the original's
+callback. A `false` disproves the map; a `true` holds for that problem and span
+only, since a run may not reach what would tell them apart.
 """
 function is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts::Integer=8,
                       samples::Union{Nothing,Integer}=nothing, space=nothing,
@@ -248,6 +265,81 @@ function is_model_map(f::ModelMap, prob::CAC.CAProblem; alg=CAC.Synchronous(),
            all(t -> isequal(pushforward(f, sol.u[t]), other.u[t]), eachindex(sol.u))
 end
 
+# What a callback of the domain sees when it runs on the codomain. It holds nothing that outlives
+# one call, so one lifted callback can serve the threads of an ensemble.
+mutable struct _LiftedIntegrator{O,U,Pr}
+    const outer::O
+    u::U
+    t::Any
+    p::Any
+    const prob::Pr
+end
+function Base.getproperty(i::_LiftedIntegrator, name::Symbol)
+    name in fieldnames(_LiftedIntegrator) && return getfield(i, name)
+    return getproperty(getfield(i, :outer), name)
+end
+CAC.terminate!(i::_LiftedIntegrator, args...) = CAC.terminate!(i.outer, args...)
+CAC.u_modified!(i::_LiftedIntegrator, modified::Bool) = nothing
+CAC.SciMLBase.add_tstop!(i::_LiftedIntegrator, t) = CAC.SciMLBase.add_tstop!(i.outer, t)
+CAC.SciMLBase.derivative_discontinuity!(::_LiftedIntegrator, ::Bool) = nothing
+
+function _lift_state(f::ModelMap, u)
+    return _from_cell_values(f.dom, map(f.section, _cell_values(f.codom, u)))
+end
+function _lifted(f::ModelMap, integ, prob)
+    return _LiftedIntegrator(integ, _lift_state(f, integ.u), integ.t, integ.p, prob)
+end
+function _lower!(f::ModelMap, integ, lifted)
+    integ.u = pushforward(f, lifted.u)
+    integ.p = lifted.p
+    return nothing
+end
+
+_lift_one(::ModelMap, ::Nothing, prob) = nothing
+function _lift_one(f::ModelMap, cb::CAC.DiscreteCallback, prob)
+    condition = (u, t, integ) -> cb.condition(_lift_state(f, u), t, _lifted(f, integ, prob))
+    affect! = function (integ)
+        lifted = _lifted(f, integ, prob)
+        cb.affect!(lifted)
+        _lower!(f, integ, lifted)
+        return nothing
+    end
+    initialize = function (c, u, t, integ)
+        lifted = _lifted(f, integ, prob)
+        cb.initialize(cb, lifted.u, t, lifted)
+        _lower!(f, integ, lifted)
+        return nothing
+    end
+    finalize = function (c, u, t, integ)
+        lifted = _lifted(f, integ, prob)
+        cb.finalize(cb, lifted.u, t, lifted)
+        return nothing
+    end
+    return CAC.DiscreteCallback(condition, affect!; initialize, finalize,
+                                save_positions=cb.save_positions)
+end
+function _lift_one(f::ModelMap, cb::CAC.CallbackSet, prob)
+    return CAC.CallbackSet((_lift_one(f, c, prob) for c in cb.discrete_callbacks)...)
+end
+function _lift_one(f::ModelMap, cb::Union{Tuple,AbstractVector}, prob)
+    return map(c -> _lift_one(f, c, prob), cb)
+end
+
+function _lift_callback(f::ModelMap, prob::CAC.CAProblem)
+    f.section === nothing &&
+        throw(ArgumentError("$f has no section to lift the state with; give one with `section=`, or use `quotient`"))
+    f.parameters === identity ||
+        throw(ArgumentError("$f maps parameters, and a lifted callback reads the domain's: `callback=:lift` needs `parameters=identity`"))
+    return _lift_one(f, get(prob.kwargs, :callback, nothing), prob)
+end
+
+# A kernel field's source reads a cell state of the domain, so it reads the lift of the codomain's.
+function _lift_field(f::CAC.KernelField, section)
+    return CAC.KernelField(f.kernel, f.source ∘ section, f.include_centre, f.method,
+                           f.precision)
+end
+_lift_field(f, section) = f
+
 # The rule of a quotient: lift the cell and its neighbours, step, and map the result down.
 struct _QuotientRule{R<:CAC.AbstractRule,H,S} <: CAC.AbstractRule
     rule::R
@@ -258,7 +350,7 @@ end
     return r.h(CAC.local_rule(r.rule, r.section(cell), map(r.section, nbrs), ctx))
 end
 CAC.neighbourhood(r::_QuotientRule) = CAC.neighbourhood(r.rule)
-CAC.fields(r::_QuotientRule) = CAC.fields(r.rule)
+CAC.fields(r::_QuotientRule) = map(f -> _lift_field(f, r.section), CAC.fields(r.rule))
 Base.show(io::IO, r::_QuotientRule) = print(io, "quotient of ", r.rule)
 
 """
@@ -268,11 +360,16 @@ The map from `model` to its quotient by the map of cell states `h`, a new model
 that needs no rule of its own: `section` lifts a cell state of the quotient to
 one of `model` (`h(section(b)) == b`), and the quotient's rule lifts a cell and
 its neighbours, applies `model`'s rule and maps the result down with `h`. It
-has `states` (as for `CAModel`) and `model`'s parameters, fields and covariates.
+has `states` (as for `CAModel`) and `model`'s parameters, covariates and kernel
+fields, whose sources read the lifted cell states.
 
 The new model is defined for any `h`, but the result is a map of models only if
 the dynamics do not depend on the lift: [`is_model_map`](@ref) is the real test
-of that, and fails when what `h` forgets feeds back. Event rules and block
+of that, and fails when what `h` forgets feeds back. When it is one, this is the
+only rule that `h` commutes with, whichever section is used, and every map of
+models that does not distinguish what `h` forgets factors through it. A problem
+with a callback moves with `callback=:lift`
+([`pushforward`](@ref pushforward(::ModelMap, ::Any))). Event rules and block
 rules, which are not stepped cell by cell, raise `ArgumentError`.
 """
 function quotient(model::CAC.CAModel, h, section; states,
@@ -281,9 +378,10 @@ function quotient(model::CAC.CAModel, h, section; states,
     model.rule isa Union{CAC.EventRule,CAC.BlockRule} &&
         throw(ArgumentError("cannot take a quotient of $(model.name): only rules stepped cell by cell"))
     rule = _QuotientRule(model.rule, h, section)
-    q = CAC.CAModel(rule; name, states, parameters=model.parameters, fields=model.fields,
+    fields = map(f -> _lift_field(f, section), model.fields)
+    q = CAC.CAModel(rule; name, states, parameters=model.parameters, fields,
                     covariates=model.covariates, description)
-    return ModelMap(model, q, h, identity)
+    return ModelMap(model, q, h, identity, section)
 end
 
 """
@@ -317,14 +415,18 @@ end
 const _Model = CAC.CAModel
 
 function _model_id(m::CAC.CAModel)
-    return ModelMap(m, m, identity, identity)
+    return ModelMap(m, m, identity, identity, identity)
 end
 
 # f then g: states and parameters go through both maps.
 function _model_compose(f::ModelMap, g::ModelMap)
     f.codom === g.dom ||
         throw(DomainMismatchError("composing maps of models", f.codom.name, g.dom.name))
-    return ModelMap(f.dom, g.codom, g.h ∘ f.h, g.parameters ∘ f.parameters)
+    parameters = f.parameters === identity ? g.parameters :
+                 g.parameters === identity ? f.parameters : g.parameters ∘ f.parameters
+    section = f.section === nothing || g.section === nothing ? nothing :
+              f.section ∘ g.section
+    return ModelMap(f.dom, g.codom, g.h ∘ f.h, parameters, section)
 end
 
 @instance ThCategory{_Model,ModelMap} begin
@@ -340,7 +442,7 @@ end
 
 CellularAutomataCore models and the maps between them form a category, an
 instance of Catlab's `ThCategory`: `compose(f, g)` is `f` followed by `g`
-(cell states and parameters go through both maps), raising
+(cell states and parameters go through both maps, and sections in reverse), raising
 [`DomainMismatchError`](@ref) unless the codomain of `f` is the domain of `g`
 (the same model object); `id(m)` is the identity of `m`. Composites of maps of
 models are maps of models, and pushing a problem forward along

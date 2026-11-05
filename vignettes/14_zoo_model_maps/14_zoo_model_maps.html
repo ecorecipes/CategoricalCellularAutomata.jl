@@ -2247,8 +2247,9 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
   <li><a href="#forgetting-what-a-model-only-records" id="toc-forgetting-what-a-model-only-records" class="nav-link" data-scroll-target="#forgetting-what-a-model-only-records">Forgetting what a model only records</a></li>
   <li><a href="#a-management-model-and-its-base-model" id="toc-a-management-model-and-its-base-model" class="nav-link" data-scroll-target="#a-management-model-and-its-base-model">A management model and its base model</a></li>
   <li><a href="#percolation-inside-a-viral-front" id="toc-percolation-inside-a-viral-front" class="nav-link" data-scroll-target="#percolation-inside-a-viral-front">Percolation inside a viral front</a></li>
-  <li><a href="#which-layers-feed-back" id="toc-which-layers-feed-back" class="nav-link" data-scroll-target="#which-layers-feed-back">Which layers feed back?</a></li>
-  <li><a href="#what-this-does-not-reach" id="toc-what-this-does-not-reach" class="nav-link" data-scroll-target="#what-this-does-not-reach">What this does not reach</a></li>
+  <li><a href="#quotients-of-models-with-callbacks" id="toc-quotients-of-models-with-callbacks" class="nav-link" data-scroll-target="#quotients-of-models-with-callbacks">Quotients of models with callbacks</a></li>
+  <li><a href="#a-short-run-can-hide-a-dependence" id="toc-a-short-run-can-hide-a-dependence" class="nav-link" data-scroll-target="#a-short-run-can-hide-a-dependence">A short run can hide a dependence</a></li>
+  <li><a href="#what-a-quotient-cannot-express" id="toc-what-a-quotient-cannot-express" class="nav-link" data-scroll-target="#what-a-quotient-cannot-express">What a quotient cannot express</a></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   </ul>
@@ -2283,17 +2284,16 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>The vignette on maps between models used small examples written for the purpose. This one tries the same ideas on the published models of EcologicalCellularAutomata, where the rules were written for other reasons and much of the dynamics lives outside them. Three relations turn out to hold exactly, and the attempt shows what a map of models cannot see.</p>
+<p>The vignette on maps between models used small examples written for the purpose. This one tries the same ideas on the published models of EcologicalCellularAutomata, where the rules were written for other reasons and much of the dynamics lives outside them. Several relations turn out to hold exactly, and the attempt shows what a map of models cannot see.</p>
 <p>A map of models compares rules, but a zoo problem is more than its rule: it may have covariates, kernel fields and callbacks acting on the whole lattice. So there are two checks. <code>is_model_map(f)</code> tests the rules on local configurations. <code>is_model_map(f, prob)</code> runs both models on one problem and compares every saved state exactly, and is the only one that sees the rest. Its <code>true</code> holds for that problem.</p>
 <p>This is a <strong>research extension</strong>, beyond the papers the package implements. The package does not depend on the zoo; only this vignette loads it.</p>
 <div id="2" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cn">ENV</span>[<span class="st">&quot;GKSwstype&quot;</span>] <span class="op">=</span> <span class="st">&quot;100&quot;</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CategoricalCellularAutomata</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">EcologicalCellularAutomata</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CellularAutomataCore</span>: CellularAutomataCore, CAProblem, solve, remake, Torus, Margolus,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>                            Synchronous, DiscreteCallback, CallbackSet</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Catlab</span>: codom</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Plots</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CellularAutomataCore</span>: CellularAutomataCore, CAProblem, solve, remake, Torus</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Catlab</span>: codom</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Plots</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="forgetting-what-a-model-only-records" class="level2">
@@ -2380,67 +2380,73 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <p>These are checks of the random numbers at 2000 contexts and over one run, not a proof. The proof is the algebra above, up to rounding: <code>π^n</code> and <code>(π^(1/R))^(R n)</code> can differ in their last bits, so a draw could in principle fall between them, though that has a chance of order <code>10^-16</code> per draw.</p>
 </section>
-<section id="which-layers-feed-back" class="level2">
-<h2 class="anchored" data-anchor-id="which-layers-feed-back">Which layers feed back?</h2>
-<p>Forgetting a layer is a map only if the layers kept do not depend on it, and that can be tested on any problem, callbacks included, without a codomain at all: rerun it with the layer reset to its default after every step, and see whether anything else changes.</p>
+<section id="quotients-of-models-with-callbacks" class="level2">
+<h2 class="anchored" data-anchor-id="quotients-of-models-with-callbacks">Quotients of models with callbacks</h2>
+<p>Fourteen of the zoo’s models do much of their work in callbacks: decisions on the whole lattice, dispersal, individuals acting one at a time. A callback reads the whole state, so forgetting a layer needs a callback for the smaller state, and <code>callback=:lift</code> builds it. After each step the state is lifted, with the forgotten layer at its default, the original callback acts on the lifted state, and the result is mapped down. The Lean library proves the construction: it commutes exactly when the callback does not depend on what is forgotten, and it is then the only callback that does (<code>Lumping.liftCallback</code>, <code>Lumping.callback_unique</code>, <code>Lumping.runWith_quotient</code>). Whether that holds for a given model is what running it tells us:</p>
 <div id="14" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">first_feedback</span>(prob, model, layer; alg<span class="op">=</span><span class="fu">Synchronous</span>())</span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> <span class="fu">only</span>(s.default <span class="cf">for</span> s <span class="kw">in</span> model.states <span class="cf">if</span> s.name <span class="op">==</span> layer)</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    erase <span class="op">=</span> <span class="fu">DiscreteCallback</span>((u, t, integ) <span class="op">-&gt;</span> <span class="cn">true</span>,</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                             integ <span class="op">-&gt;</span> (<span class="fu">fill!</span>(<span class="fu">getfield</span>(integ.u, layer), d); <span class="cn">nothing</span>);</span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>                             save_positions<span class="op">=</span>(<span class="cn">false</span>, <span class="cn">false</span>))</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    old <span class="op">=</span> <span class="fu">get</span>(prob.kwargs, <span class="op">:</span>callback, <span class="cn">nothing</span>)</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    callback <span class="op">=</span> old <span class="op">===</span> <span class="cn">nothing</span> ? erase <span class="op">:</span> <span class="fu">CallbackSet</span>(old, erase)</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    u0 <span class="op">=</span> <span class="fu">merge</span>(prob.u0, <span class="fu">NamedTuple</span><span class="dt">{(layer,)}</span>((<span class="fu">fill</span>(d, <span class="fu">size</span>(<span class="fu">getfield</span>(prob.u0, layer))),)))</span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    a <span class="op">=</span> <span class="fu">solve</span>(prob, alg)</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    b <span class="op">=</span> <span class="fu">solve</span>(<span class="fu">remake</span>(prob; u0, kwargs<span class="op">=</span><span class="fu">merge</span>(prob.kwargs, (; callback))), alg)</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    kept <span class="op">=</span> <span class="fu">filter</span>(<span class="op">!=</span>(layer), <span class="fu">keys</span>(prob.u0))</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> <span class="fu">findfirst</span>(i <span class="op">-&gt;</span> <span class="fu">any</span>(k <span class="op">-&gt;</span> !<span class="fu">isequal</span>(<span class="fu">getfield</span>(a.u[i], k), <span class="fu">getfield</span>(b.u[i], k)), kept),</span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">eachindex</span>(a.u))</span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> t <span class="op">===</span> <span class="cn">nothing</span> ? <span class="st">&quot;none in </span><span class="sc">$</span>(<span class="fu">length</span>(a.u) <span class="op">-</span> <span class="fl">1</span>)<span class="st"> steps&quot;</span> <span class="op">:</span> <span class="st">&quot;from step </span><span class="sc">$</span>(a.t[t])<span class="st">&quot;</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">scan</span>(id, layer; kw<span class="op">=</span>(;), alg<span class="op">=</span><span class="fu">Synchronous</span>(), steps<span class="op">=</span><span class="cn">nothing</span>)</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    prob <span class="op">=</span> <span class="fu">problem</span>(id; kw<span class="op">...</span>)</span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    prob <span class="op">=</span> steps <span class="op">===</span> <span class="cn">nothing</span> ? prob <span class="op">:</span> <span class="fu">remake</span>(prob; tspan<span class="op">=</span>(prob.tspan[<span class="fl">1</span>], steps))</span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (model<span class="op">=</span>id, layer, setting<span class="op">=</span><span class="fu">join</span>((<span class="st">&quot;</span><span class="sc">$</span>k<span class="st">=</span><span class="sc">$</span>v<span class="st">&quot;</span> <span class="cf">for</span> (k, v) <span class="kw">in</span> <span class="fu">pairs</span>(kw) <span class="cf">if</span> k <span class="op">!=</span> <span class="op">:</span>n), <span class="st">&quot;, &quot;</span>),</span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>            feedback<span class="op">=</span><span class="fu">first_feedback</span>(prob, <span class="fu">build</span>(id), layer; alg))</span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>[<span class="fu">scan</span>(<span class="op">:</span>tuta_absoluta_asia, <span class="op">:</span>reached), <span class="fu">scan</span>(<span class="op">:</span>tuta_absoluta_asia, <span class="op">:</span>land),</span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a> <span class="fu">scan</span>(<span class="op">:</span>cassava_mealybug, <span class="op">:</span>loss), <span class="fu">scan</span>(<span class="op">:</span>pine_wilt_casim, <span class="op">:</span>years),</span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a> <span class="fu">scan</span>(<span class="op">:</span>eab_management, <span class="op">:</span>large; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>)),</span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a> <span class="fu">scan</span>(<span class="op">:</span>eab_management, <span class="op">:</span>large; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>, treatment<span class="op">=:</span>girdling)),</span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a> <span class="fu">scan</span>(<span class="op">:</span>eab_management, <span class="op">:</span>phloem0; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>)),</span>
-<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a> <span class="fu">scan</span>(<span class="op">:</span>eab_management, <span class="op">:</span>phloem0; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>, stress_bias<span class="op">=</span><span class="cn">true</span>))]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">forgets</span>(id, layer; kw<span class="op">=</span>(;))</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (model<span class="op">=</span>id, layer, setting<span class="op">=</span><span class="fu">join</span>((<span class="st">&quot;</span><span class="sc">$</span>k<span class="st">=</span><span class="sc">$</span>v<span class="st">&quot;</span> <span class="cf">for</span> (k, v) <span class="kw">in</span> <span class="fu">pairs</span>(kw) <span class="cf">if</span> k <span class="op">!=</span> <span class="op">:</span>n), <span class="st">&quot;, &quot;</span>),</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>            is_map<span class="op">=</span><span class="fu">is_model_map</span>(<span class="fu">forget_layers</span>(<span class="fu">build</span>(id), layer), <span class="fu">problem</span>(id; kw<span class="op">...</span>);</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                                callback<span class="op">=:</span>lift))</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>[<span class="fu">forgets</span>(<span class="op">:</span>cassava_mealybug, <span class="op">:</span>loss), <span class="fu">forgets</span>(<span class="op">:</span>cassava_mealybug, <span class="op">:</span>since),</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a> <span class="fu">forgets</span>(<span class="op">:</span>potato_moth_farmers, <span class="op">:</span>source), <span class="fu">forgets</span>(<span class="op">:</span>potato_moth_farmers, <span class="op">:</span>carriers),</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a> <span class="fu">forgets</span>(<span class="op">:</span>western_x_orchard, <span class="op">:</span>age), <span class="fu">forgets</span>(<span class="op">:</span>western_x_orchard, <span class="op">:</span>clock),</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a> <span class="fu">forgets</span>(<span class="op">:</span>eab_management, <span class="op">:</span>large; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>)),</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a> <span class="fu">forgets</span>(<span class="op">:</span>eab_management, <span class="op">:</span>large; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>, treatment<span class="op">=:</span>girdling)),</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a> <span class="fu">forgets</span>(<span class="op">:</span>eab_management, <span class="op">:</span>phloem0; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>)),</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a> <span class="fu">forgets</span>(<span class="op">:</span>eab_management, <span class="op">:</span>phloem0; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">40</span>, stress_bias<span class="op">=</span><span class="cn">true</span>))]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>8-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, feedback::String}}:
- (model = :tuta_absoluta_asia, layer = :reached, setting = &quot;&quot;, feedback = &quot;none in 300 steps&quot;)
- (model = :tuta_absoluta_asia, layer = :land, setting = &quot;&quot;, feedback = &quot;from step 1&quot;)
- (model = :cassava_mealybug, layer = :loss, setting = &quot;&quot;, feedback = &quot;none in 360 steps&quot;)
- (model = :pine_wilt_casim, layer = :years, setting = &quot;&quot;, feedback = &quot;from step 4&quot;)
- (model = :eab_management, layer = :large, setting = &quot;&quot;, feedback = &quot;none in 15 steps&quot;)
- (model = :eab_management, layer = :large, setting = &quot;treatment=girdling&quot;, feedback = &quot;from step 1&quot;)
- (model = :eab_management, layer = :phloem0, setting = &quot;&quot;, feedback = &quot;none in 15 steps&quot;)
- (model = :eab_management, layer = :phloem0, setting = &quot;stress_bias=true&quot;, feedback = &quot;from step 3&quot;)</code></pre>
+<pre><code>10-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, is_map::Bool}}:
+ (model = :cassava_mealybug, layer = :loss, setting = &quot;&quot;, is_map = 1)
+ (model = :cassava_mealybug, layer = :since, setting = &quot;&quot;, is_map = 0)
+ (model = :potato_moth_farmers, layer = :source, setting = &quot;&quot;, is_map = 1)
+ (model = :potato_moth_farmers, layer = :carriers, setting = &quot;&quot;, is_map = 0)
+ (model = :western_x_orchard, layer = :age, setting = &quot;&quot;, is_map = 1)
+ (model = :western_x_orchard, layer = :clock, setting = &quot;&quot;, is_map = 0)
+ (model = :eab_management, layer = :large, setting = &quot;&quot;, is_map = 1)
+ (model = :eab_management, layer = :large, setting = &quot;treatment=girdling&quot;, is_map = 0)
+ (model = :eab_management, layer = :phloem0, setting = &quot;&quot;, is_map = 1)
+ (model = :eab_management, layer = :phloem0, setting = &quot;stress_bias=true&quot;, is_map = 0)</code></pre>
 </div>
 </div>
-<p>The scan agrees with the maps found above: <code>large</code> matters once there is a treatment, and <code>phloem0</code> only with the stress bias. The cassava mealybug’s <code>loss</code> layer only records.</p>
-<p>A “none” is evidence about one problem over one span, and the span matters. The three-layer Bt crop model keeps a Penna genome for each enemy, which acts only as individuals age. Over 40 steps forgetting it looks harmless, and over the source’s full run it is not:</p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>[<span class="fu">scan</span>(<span class="op">:</span>bt_crop_three_layer, <span class="op">:</span>enemy_genome; alg<span class="op">=</span><span class="fu">Margolus</span>(), steps<span class="op">=</span><span class="fl">40</span>),</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a> <span class="fu">scan</span>(<span class="op">:</span>bt_crop_three_layer, <span class="op">:</span>enemy_genome; alg<span class="op">=</span><span class="fu">Margolus</span>())]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="1">
-<pre><code>2-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, feedback::String}}:
- (model = :bt_crop_three_layer, layer = :enemy_genome, setting = &quot;&quot;, feedback = &quot;none in 40 steps&quot;)
- (model = :bt_crop_three_layer, layer = :enemy_genome, setting = &quot;&quot;, feedback = &quot;from step 47&quot;)</code></pre>
-</div>
-</div>
+<p>Each <code>true</code> has a reason in the model’s code. The mealybug’s <code>loss</code> is written by the rule and read only by a summary of the yield. The potato moth’s <code>source</code>, the origin of a cell’s moths, is the published counterpart of the lineage label in the previous vignette: it is copied from a neighbour or set when a farmer’s team brings moths in, and it never decides anything. In the western X orchard, <code>age</code> sets yields and costs in the economic summary but not the epidemic. The ash borer’s layers show that the answer belongs to the problem as well as the model: <code>large</code> matters once there is a treatment, and <code>phloem0</code> only under the stress bias.</p>
 </section>
-<section id="what-this-does-not-reach" class="level2">
-<h2 class="anchored" data-anchor-id="what-this-does-not-reach">What this does not reach</h2>
+<section id="a-short-run-can-hide-a-dependence" class="level2">
+<h2 class="anchored" data-anchor-id="a-short-run-can-hide-a-dependence">A short run can hide a dependence</h2>
+<p>A <code>false</code> disproves a map, but a <code>true</code> holds only for the problem and the span that was run. The grapevine leafroll model has an <code>age</code> layer, and forgetting it looks harmless at first:</p>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>vine <span class="op">=</span> <span class="fu">problem</span>(<span class="op">:</span>grapevine_leafroll)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>forget_age <span class="op">=</span> <span class="fu">forget_layers</span>(<span class="fu">build</span>(<span class="op">:</span>grapevine_leafroll), <span class="op">:</span>age)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>full <span class="op">=</span> <span class="fu">solve</span>(vine)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>down <span class="op">=</span> <span class="fu">solve</span>(<span class="fu">pushforward</span>(forget_age, vine; callback<span class="op">=:</span>lift))</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>(first_month_that_differs<span class="op">=</span>full.t[<span class="fu">findfirst</span>(i <span class="op">-&gt;</span> <span class="fu">pushforward</span>(forget_age, full.u[i]) <span class="op">!=</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                                                down.u[i], <span class="fu">eachindex</span>(full.u))],</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a> months<span class="op">=</span>vine.tspan[<span class="fl">2</span>],</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a> is_map_over<span class="op">=</span><span class="fu">map</span>(T <span class="op">-&gt;</span> T <span class="op">=&gt;</span> <span class="fu">is_model_map</span>(forget_age, <span class="fu">remake</span>(vine; tspan<span class="op">=</span>(<span class="fl">0</span>, T));</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                                        callback<span class="op">=:</span>lift), (<span class="fl">40</span>, <span class="fl">60</span>, <span class="fl">100</span>, <span class="fl">600</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>(first_month_that_differs = 61, months = 600, is_map_over = (40 =&gt; true, 60 =&gt; true, 100 =&gt; false, 600 =&gt; false))</code></pre>
+</div>
+</div>
+<p>How long an exposed vine takes to become infective depends on whether it is younger than 60 months, and the lift makes every vine a new one, so the two runs agree until the first vines come of age. No run shorter than that could tell them apart.</p>
+</section>
+<section id="what-a-quotient-cannot-express" class="level2">
+<h2 class="anchored" data-anchor-id="what-a-quotient-cannot-express">What a quotient cannot express</h2>
+<p>Some layers matter within a step and not between steps. The ash borer’s <code>larvae1</code> is written by the rule and read by the callback in the same step, and the next rule overwrites it without reading it, so what a saved state holds in that layer is never used. Even so, forgetting it is not a map of this kind:</p>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">forgets</span>(<span class="op">:</span>emerald_ash_borer, <span class="op">:</span>larvae1; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">41</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>(model = :emerald_ash_borer, layer = :larvae1, setting = &quot;&quot;, is_map = false)</code></pre>
+</div>
+</div>
+<p>The quotient maps down between the rule and the callback, so the larvae are gone before the callback can see them. A map here would have to treat the rule and the callback as one step, which <code>forget_layers</code> does not do.</p>
+<p>Other limits:</p>
 <ul>
-<li>A layer that never leaves its default passes this scan vacuously. Many zoo layers are like that at their default settings (<code>rogued</code> and <code>tested</code> in the grapevine model, for example), and that says nothing about the runs that use them.</li>
-<li>Models with callbacks can be scanned, but <code>forget_layers</code> gives no codomain for them. A callback reads the whole state, and the quotient has no general way to lift it. So the mealybug’s <code>loss</code> layer has no map yet, though it passes the scan. The ash borer works because the base model has a callback of its own.</li>
-<li>The dune model with <code>speedup = 0</code> is not an example. It is one model at another parameter value, not a second model.</li>
+<li>A layer that never leaves its default passes vacuously. <code>rogued</code> and <code>tested</code> in the grapevine model are like that at its default settings, which says nothing about the runs that use them.</li>
+<li>Block rules, such as the three-layer Bt crop model’s, are not stepped cell by cell, and <code>quotient</code> refuses them.</li>
+<li>A callback may refuse to run on what is left. Forgetting <code>farmers</code> in the potato moth model raises the model’s own error, and that is an answer too.</li>
+<li>The dune model with <code>speedup = 0</code> is not an example: it is one model at another parameter value, not a second model.</li>
 </ul>
 </section>
 <section id="summary" class="level2">
@@ -2493,6 +2499,21 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <td>the same, with mutation</td>
 <td>rules</td>
 <td>not a map</td>
+</tr>
+<tr class="even">
+<td>mealybug without <code>loss</code>, potato moth without <code>source</code>, orchard without <code>age</code></td>
+<td>run, lifted callback</td>
+<td>a map</td>
+</tr>
+<tr class="odd">
+<td>grapevine without <code>age</code></td>
+<td>run, lifted callback</td>
+<td>not a map, from month 61</td>
+</tr>
+<tr class="even">
+<td>ash borer without <code>larvae1</code></td>
+<td>run, lifted callback</td>
+<td>not a map: read between rule and callback</td>
 </tr>
 </tbody>
 </table>

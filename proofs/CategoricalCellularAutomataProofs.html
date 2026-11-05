@@ -128,6 +128,9 @@ id="toc-moving-models-between-spaces">Moving models between
 spaces</a></li>
 <li><a href="#maps-between-models" id="toc-maps-between-models">Maps
 between models</a></li>
+<li><a href="#quotients-of-models-with-and-without-callbacks"
+id="toc-quotients-of-models-with-and-without-callbacks">Quotients of
+models, with and without callbacks</a></li>
 </ul>
 </nav>
 <!-- CategoricalCellularAutomataProofs/Basic.lean -->
@@ -291,6 +294,41 @@ state</td>
 <td><code>pullback(f, prob; space)</code>, <code>pushforward</code></td>
 <td>moving models along a map of spaces is a functor: maps of models and
 of spaces commute</td>
+</tr>
+<tr>
+<td><code>Lumping</code>, <code>Lumping.model</code></td>
+<td><code>quotient(model, h, section)</code>,
+<code>forget_layers</code></td>
+<td>the quotient’s rule: lift the neighbours, apply the rule, map the
+result down</td>
+</tr>
+<tr>
+<td><code>Lumping.descends_iff_exists_rule</code>,
+<code>Lumping.rule_unique</code></td>
+<td><code>is_model_map</code> on a quotient</td>
+<td><code>h</code> commutes with some rule exactly when the dynamics do
+not depend on what it forgets; that rule is the quotient’s, whichever
+section is used</td>
+</tr>
+<tr>
+<td><code>Lumping.lift_comp</code>,
+<code>Lumping.lift_unique</code></td>
+<td><code>quotient</code></td>
+<td>the universal property: maps of models that do not distinguish what
+<code>h</code> forgets factor through the quotient, uniquely</td>
+</tr>
+<tr>
+<td><code>Lumping.liftCallback</code>,
+<code>Lumping.runWith_quotient</code></td>
+<td><code>pushforward(f, prob; callback=:lift)</code></td>
+<td>a callback lifts when it does not depend on what is forgotten, and
+the quotient with it runs every run of the original, mapped down</td>
+</tr>
+<tr>
+<td><code>Lumping.erased_run</code></td>
+<td><code>is_model_map(f, prob)</code></td>
+<td>what a run can show: without feedback, erasing what is forgotten
+changes nothing kept, so a difference disproves the map</td>
 </tr>
 </tbody>
 </table>
@@ -1180,5 +1218,221 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb18-1"><a href=
 <span id="cb18-82"><a href="#cb18-82" aria-hidden="true" tabindex="-1"></a>  map_comp _ _ := <span class="cf">rfl</span></span>
 <span id="cb18-83"><a href="#cb18-83" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-84"><a href="#cb18-84" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<!-- CategoricalCellularAutomataProofs/Quotients.lean -->
+<h1 id="quotients-of-models-with-and-without-callbacks">Quotients of
+models, with and without callbacks</h1>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Models</span></code></pre></div>
+<p>A lumping of a model <code>M</code> is a map of cell states
+<code>h : M.A → B</code> with a section <code>s</code>
+(<code>h (s b) = b</code>): a way to forget something, and a way to fill
+it back in. The package’s <code>quotient(model, h, section)</code>
+builds the quotient model from <code>M</code>’s own rule: lift the
+neighbours with <code>s</code>, apply the rule, and map the result down
+with <code>h</code>.</p>
+<p>That rule exists for every lumping. It makes <code>h</code> a map of
+models exactly when the next state, mapped by <code>h</code>, does not
+depend on what <code>h</code> forgets (<code>Lumping.Descends</code>),
+and then it is the only rule that does, whichever section was used
+(<code>Lumping.rule_unique</code>), and the quotient has the universal
+property of a quotient: every map of models that does not distinguish
+what <code>h</code> forgets factors through it, uniquely
+(<code>Lumping.lift_comp</code>, <code>Lumping.lift_unique</code>).</p>
+<p>A callback acts on the whole configuration, not cell by cell, and
+runs after each step. It lifts in the same way,
+<code>y ↦ h ∘ κ (s ∘ y)</code>, under the same kind of condition
+(<code>Lumping.CallbackDescends</code>). With both conditions the
+quotient, with its lifted callback, runs every run of the original
+mapped by <code>h</code> (<code>Lumping.runWith_quotient</code>). The
+package’s <code>pushforward(f, prob; callback=:lift)</code> is this
+construction.</p>
+<p>The last theorem says what erasing a layer after every step can show.
+If <code>h</code> forgets without feedback, the erased run agrees with
+the original on everything kept (<code>Lumping.erased_run</code>). So a
+difference between the two disproves the map; agreement on one problem
+does not prove it.</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="kw">open</span> CategoryTheory</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="kw">universe</span> u</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {X : <span class="kw">Type</span> u} {nbrs : X → List X}</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The run of a time-dependent rule with a callback: each step applies the rule, then the</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="do">callback `κ n` to the whole configuration. -/</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> runWith {A : <span class="kw">Type</span> u} (nbrs : X → List X) (μ : ℕ → X → List A → A)</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    (κ : ℕ → (X → A) → X → A) (x : X → A) : ℕ → X → A</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>  | <span class="dv">0</span> =&gt; x</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>  | n + <span class="dv">1</span> =&gt; κ n (step nbrs (μ n) (runWith nbrs μ κ x n))</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of models that commutes with two callbacks sends runs with the first to runs with the</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="do">second. -/</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> ModelMap.runWith_map {M N : CAModel X} (F : ModelMap M N)</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    (κM : ℕ → (X → M.A) → X → M.A) (κN : ℕ → (X → N.A) → X → N.A)</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    (hκ : ∀ n x, F.h ∘ κM n x = κN n (F.h ∘ x)) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>    runWith nbrs N.μ κN (F.h ∘ x) n = F.h ∘ runWith nbrs M.μ κM x n := <span class="kw">by</span></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">rfl</span></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt; <span class="cf">simp</span> only [runWith, ih, ModelMap.step_map, hκ]</span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A way to forget something about cell states of `M`, and to fill it back in. -/</span></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> Lumping (M : CAModel X) (B : <span class="kw">Type</span> u) <span class="kw">where</span></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the map of cell states -/</span></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>  h : M.A → B</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the lift of a cell state -/</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>  s : B → M.A</span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- lifting and mapping down changes nothing -/</span></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>  h_s : ∀ b, h (s b) = b</span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> Lumping</span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {M N : CAModel X} {B : <span class="kw">Type</span> u} (q : Lumping M B)</span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> h_comp_s : q.h ∘ q.s = _root_.id := <span class="cf">funext</span> q.h_s</span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> map_h_map_s (l : List B) : (l.map q.s).map q.h = l := <span class="kw">by</span></span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [List.map_map, q.h_comp_s, List.map_id]</span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The quotient model: lift the neighbours, apply `M`&#39;s rule, map the result down. -/</span></span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model : CAModel X <span class="kw">where</span></span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a>  A := B</span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a>  μ t c l := q.h (M.μ t c (l.map q.s))</span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The next state, mapped by `h`, does not depend on what `h` forgets. -/</span></span>
+<span id="cb20-50"><a href="#cb20-50" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> Descends : <span class="kw">Prop</span> :=</span>
+<span id="cb20-51"><a href="#cb20-51" aria-hidden="true" tabindex="-1"></a>  ∀ t c (l l&#39; : List M.A), l.map q.h = l&#39;.map q.h → q.h (M.μ t c l) = q.h (M.μ t c l&#39;)</span>
+<span id="cb20-52"><a href="#cb20-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-53"><a href="#cb20-53" aria-hidden="true" tabindex="-1"></a><span class="do">/-- When the dynamics do not depend on what is forgotten, `h` is a map onto the quotient. -/</span></span>
+<span id="cb20-54"><a href="#cb20-54" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> map (hd : q.Descends) : ModelMap M q.model <span class="kw">where</span></span>
+<span id="cb20-55"><a href="#cb20-55" aria-hidden="true" tabindex="-1"></a>  h := q.h</span>
+<span id="cb20-56"><a href="#cb20-56" aria-hidden="true" tabindex="-1"></a>  comm t c l := hd t c l ((l.map q.h).map q.s) (q.map_h_map_s _).symm</span>
+<span id="cb20-57"><a href="#cb20-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-58"><a href="#cb20-58" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Any rule that `h` commutes with is the quotient&#39;s**, whichever section was used. -/</span></span>
+<span id="cb20-59"><a href="#cb20-59" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> rule_unique {μ&#39; : ℕ → X → List B → B}</span>
+<span id="cb20-60"><a href="#cb20-60" aria-hidden="true" tabindex="-1"></a>    (comm : ∀ t c l, q.h (M.μ t c l) = μ&#39; t c (l.map q.h)) : μ&#39; = q.model.μ := <span class="kw">by</span></span>
+<span id="cb20-61"><a href="#cb20-61" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> t c l</span>
+<span id="cb20-62"><a href="#cb20-62" aria-hidden="true" tabindex="-1"></a>  <span class="kw">show</span> μ&#39; t c l = q.h (M.μ t c (l.map q.s))</span>
+<span id="cb20-63"><a href="#cb20-63" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [comm, q.map_h_map_s]</span>
+<span id="cb20-64"><a href="#cb20-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-65"><a href="#cb20-65" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **`h` commutes with some rule exactly when the dynamics do not depend on what it forgets.**</span></span>
+<span id="cb20-66"><a href="#cb20-66" aria-hidden="true" tabindex="-1"></a><span class="do">This is what `is_model_map` tests for a quotient. -/</span></span>
+<span id="cb20-67"><a href="#cb20-67" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> descends_iff_exists_rule :</span>
+<span id="cb20-68"><a href="#cb20-68" aria-hidden="true" tabindex="-1"></a>    q.Descends ↔ ∃ μ&#39; : ℕ → X → List B → B, ∀ t c l, q.h (M.μ t c l) = μ&#39; t c (l.map q.h) := <span class="kw">by</span></span>
+<span id="cb20-69"><a href="#cb20-69" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb20-70"><a href="#cb20-70" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> hd</span>
+<span id="cb20-71"><a href="#cb20-71" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> ⟨q.model.μ, (q.map hd).comm⟩</span>
+<span id="cb20-72"><a href="#cb20-72" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">rintro</span> ⟨μ&#39;, comm⟩ t c l l&#39; e</span>
+<span id="cb20-73"><a href="#cb20-73" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [comm, comm, e]</span>
+<span id="cb20-74"><a href="#cb20-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-75"><a href="#cb20-75" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Two sections of the same map give the same quotient rule. -/</span></span>
+<span id="cb20-76"><a href="#cb20-76" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> rule_eq_of_section (q&#39; : Lumping M B) (hh : q&#39;.h = q.h) (hd : q.Descends) :</span>
+<span id="cb20-77"><a href="#cb20-77" aria-hidden="true" tabindex="-1"></a>    q&#39;.model.μ = q.model.μ := <span class="kw">by</span></span>
+<span id="cb20-78"><a href="#cb20-78" aria-hidden="true" tabindex="-1"></a>  <span class="cf">apply</span> q.rule_unique</span>
+<span id="cb20-79"><a href="#cb20-79" aria-hidden="true" tabindex="-1"></a>  <span class="cf">intro</span> t c l</span>
+<span id="cb20-80"><a href="#cb20-80" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> e : l.map q.h = ((l.map q.h).map q&#39;.s).map q.h := <span class="kw">by</span></span>
+<span id="cb20-81"><a href="#cb20-81" aria-hidden="true" tabindex="-1"></a>    <span class="kw">have</span> := q&#39;.map_h_map_s (l.map q.h)</span>
+<span id="cb20-82"><a href="#cb20-82" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [hh] <span class="kw">at</span> this</span>
+<span id="cb20-83"><a href="#cb20-83" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> this.symm</span>
+<span id="cb20-84"><a href="#cb20-84" aria-hidden="true" tabindex="-1"></a>  <span class="kw">show</span> q.h (M.μ t c l) = q&#39;.h (M.μ t c ((l.map q.h).map q&#39;.s))</span>
+<span id="cb20-85"><a href="#cb20-85" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [hh]</span>
+<span id="cb20-86"><a href="#cb20-86" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> hd t c _ _ e</span>
+<span id="cb20-87"><a href="#cb20-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-88"><a href="#cb20-88" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The map out of the quotient induced by a map of models that does not distinguish what `h`</span></span>
+<span id="cb20-89"><a href="#cb20-89" aria-hidden="true" tabindex="-1"></a><span class="do">forgets. -/</span></span>
+<span id="cb20-90"><a href="#cb20-90" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lift (F : ModelMap M N) (hF : ∀ a a&#39;, q.h a = q.h a&#39; → F.h a = F.h a&#39;) :</span>
+<span id="cb20-91"><a href="#cb20-91" aria-hidden="true" tabindex="-1"></a>    ModelMap q.model N <span class="kw">where</span></span>
+<span id="cb20-92"><a href="#cb20-92" aria-hidden="true" tabindex="-1"></a>  h b := F.h (q.s b)</span>
+<span id="cb20-93"><a href="#cb20-93" aria-hidden="true" tabindex="-1"></a>  comm t c l := <span class="kw">by</span></span>
+<span id="cb20-94"><a href="#cb20-94" aria-hidden="true" tabindex="-1"></a>    <span class="kw">show</span> F.h (q.s (q.h (M.μ t c (l.map q.s)))) = N.μ t c (l.map <span class="kw">fun</span> b =&gt; F.h (q.s b))</span>
+<span id="cb20-95"><a href="#cb20-95" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [hF _ _ (q.h_s _), F.comm, List.map_map]</span>
+<span id="cb20-96"><a href="#cb20-96" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rfl</span></span>
+<span id="cb20-97"><a href="#cb20-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-98"><a href="#cb20-98" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Universal property, existence.** The map factors through the quotient. -/</span></span>
+<span id="cb20-99"><a href="#cb20-99" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> lift_comp (hd : q.Descends) (F : ModelMap M N)</span>
+<span id="cb20-100"><a href="#cb20-100" aria-hidden="true" tabindex="-1"></a>    (hF : ∀ a a&#39;, q.h a = q.h a&#39; → F.h a = F.h a&#39;) :</span>
+<span id="cb20-101"><a href="#cb20-101" aria-hidden="true" tabindex="-1"></a>    (q.map hd).comp (q.lift F hF) = F := <span class="kw">by</span></span>
+<span id="cb20-102"><a href="#cb20-102" aria-hidden="true" tabindex="-1"></a>  <span class="cf">apply</span> ModelMap.ext</span>
+<span id="cb20-103"><a href="#cb20-103" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> a</span>
+<span id="cb20-104"><a href="#cb20-104" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> hF _ _ (q.h_s _)</span>
+<span id="cb20-105"><a href="#cb20-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-106"><a href="#cb20-106" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Universal property, uniqueness.** The factorisation is the only one. -/</span></span>
+<span id="cb20-107"><a href="#cb20-107" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> lift_unique (hd : q.Descends) (F : ModelMap M N)</span>
+<span id="cb20-108"><a href="#cb20-108" aria-hidden="true" tabindex="-1"></a>    (hF : ∀ a a&#39;, q.h a = q.h a&#39; → F.h a = F.h a&#39;) (G : ModelMap q.model N)</span>
+<span id="cb20-109"><a href="#cb20-109" aria-hidden="true" tabindex="-1"></a>    (hG : (q.map hd).comp G = F) : G = q.lift F hF := <span class="kw">by</span></span>
+<span id="cb20-110"><a href="#cb20-110" aria-hidden="true" tabindex="-1"></a>  <span class="cf">apply</span> ModelMap.ext</span>
+<span id="cb20-111"><a href="#cb20-111" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> b</span>
+<span id="cb20-112"><a href="#cb20-112" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> e : F.h (q.s b) = G.h (q.h (q.s b)) := <span class="kw">by</span> <span class="cf">rw</span> [← hG]; <span class="cf">rfl</span></span>
+<span id="cb20-113"><a href="#cb20-113" aria-hidden="true" tabindex="-1"></a>  <span class="kw">show</span> G.h b = F.h (q.s b)</span>
+<span id="cb20-114"><a href="#cb20-114" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [e, q.h_s]</span>
+<span id="cb20-115"><a href="#cb20-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-116"><a href="#cb20-116" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The callback of the quotient: lift the configuration, apply the callback, map down. -/</span></span>
+<span id="cb20-117"><a href="#cb20-117" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> liftCallback (κ : ℕ → (X → M.A) → X → M.A) : ℕ → (X → B) → X → B :=</span>
+<span id="cb20-118"><a href="#cb20-118" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> n y =&gt; q.h ∘ κ n (q.s ∘ y)</span>
+<span id="cb20-119"><a href="#cb20-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-120"><a href="#cb20-120" aria-hidden="true" tabindex="-1"></a><span class="do">/-- What a callback leaves, mapped by `h`, does not depend on what `h` forgets. -/</span></span>
+<span id="cb20-121"><a href="#cb20-121" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> CallbackDescends (κ : ℕ → (X → M.A) → X → M.A) : <span class="kw">Prop</span> :=</span>
+<span id="cb20-122"><a href="#cb20-122" aria-hidden="true" tabindex="-1"></a>  ∀ n (x x&#39; : X → M.A), q.h ∘ x = q.h ∘ x&#39; → q.h ∘ κ n x = q.h ∘ κ n x&#39;</span>
+<span id="cb20-123"><a href="#cb20-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-124"><a href="#cb20-124" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> h_comp_s_comp (y : X → B) : q.h ∘ (q.s ∘ y) = y := <span class="kw">by</span></span>
+<span id="cb20-125"><a href="#cb20-125" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> c</span>
+<span id="cb20-126"><a href="#cb20-126" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> q.h_s (y c)</span>
+<span id="cb20-127"><a href="#cb20-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-128"><a href="#cb20-128" aria-hidden="true" tabindex="-1"></a><span class="do">/-- When the callback does not depend on what is forgotten, `h` commutes with the lifted</span></span>
+<span id="cb20-129"><a href="#cb20-129" aria-hidden="true" tabindex="-1"></a><span class="do">callback. -/</span></span>
+<span id="cb20-130"><a href="#cb20-130" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> liftCallback_comm {κ : ℕ → (X → M.A) → X → M.A} (hκ : q.CallbackDescends κ) (n : ℕ)</span>
+<span id="cb20-131"><a href="#cb20-131" aria-hidden="true" tabindex="-1"></a>    (x : X → M.A) : q.h ∘ κ n x = q.liftCallback κ n (q.h ∘ x) :=</span>
+<span id="cb20-132"><a href="#cb20-132" aria-hidden="true" tabindex="-1"></a>  hκ n x (q.s ∘ (q.h ∘ x)) (q.h_comp_s_comp (q.h ∘ x)).symm</span>
+<span id="cb20-133"><a href="#cb20-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-134"><a href="#cb20-134" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **`h` commutes with some callback exactly when the callback does not depend on what it</span></span>
+<span id="cb20-135"><a href="#cb20-135" aria-hidden="true" tabindex="-1"></a><span class="do">forgets.** -/</span></span>
+<span id="cb20-136"><a href="#cb20-136" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> callbackDescends_iff_exists {κ : ℕ → (X → M.A) → X → M.A} :</span>
+<span id="cb20-137"><a href="#cb20-137" aria-hidden="true" tabindex="-1"></a>    q.CallbackDescends κ ↔</span>
+<span id="cb20-138"><a href="#cb20-138" aria-hidden="true" tabindex="-1"></a>      ∃ κ&#39; : ℕ → (X → B) → X → B, ∀ n x, q.h ∘ κ n x = κ&#39; n (q.h ∘ x) := <span class="kw">by</span></span>
+<span id="cb20-139"><a href="#cb20-139" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb20-140"><a href="#cb20-140" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> hκ</span>
+<span id="cb20-141"><a href="#cb20-141" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> ⟨q.liftCallback κ, q.liftCallback_comm hκ⟩</span>
+<span id="cb20-142"><a href="#cb20-142" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">rintro</span> ⟨κ&#39;, comm⟩ n x x&#39; e</span>
+<span id="cb20-143"><a href="#cb20-143" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [comm, comm, e]</span>
+<span id="cb20-144"><a href="#cb20-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-145"><a href="#cb20-145" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Any callback that `h` commutes with is the lifted one.** -/</span></span>
+<span id="cb20-146"><a href="#cb20-146" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> callback_unique {κ : ℕ → (X → M.A) → X → M.A} {κ&#39; : ℕ → (X → B) → X → B}</span>
+<span id="cb20-147"><a href="#cb20-147" aria-hidden="true" tabindex="-1"></a>    (comm : ∀ n x, q.h ∘ κ n x = κ&#39; n (q.h ∘ x)) : κ&#39; = q.liftCallback κ := <span class="kw">by</span></span>
+<span id="cb20-148"><a href="#cb20-148" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> n y</span>
+<span id="cb20-149"><a href="#cb20-149" aria-hidden="true" tabindex="-1"></a>  <span class="kw">show</span> κ&#39; n y = q.h ∘ κ n (q.s ∘ y)</span>
+<span id="cb20-150"><a href="#cb20-150" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [comm, q.h_comp_s_comp]</span>
+<span id="cb20-151"><a href="#cb20-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-152"><a href="#cb20-152" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The quotient with its lifted callback runs every run of the original, mapped by `h`.** -/</span></span>
+<span id="cb20-153"><a href="#cb20-153" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> runWith_quotient (hd : q.Descends) {κ : ℕ → (X → M.A) → X → M.A}</span>
+<span id="cb20-154"><a href="#cb20-154" aria-hidden="true" tabindex="-1"></a>    (hκ : q.CallbackDescends κ) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb20-155"><a href="#cb20-155" aria-hidden="true" tabindex="-1"></a>    runWith nbrs q.model.μ (q.liftCallback κ) (q.h ∘ x) n = q.h ∘ runWith nbrs M.μ κ x n :=</span>
+<span id="cb20-156"><a href="#cb20-156" aria-hidden="true" tabindex="-1"></a>  (q.map hd).runWith_map κ (q.liftCallback κ) (q.liftCallback_comm hκ) x n</span>
+<span id="cb20-157"><a href="#cb20-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-158"><a href="#cb20-158" aria-hidden="true" tabindex="-1"></a><span class="do">/-- One step from configurations that `h` does not distinguish gives results it does not</span></span>
+<span id="cb20-159"><a href="#cb20-159" aria-hidden="true" tabindex="-1"></a><span class="do">distinguish, when the rule does not depend on what it forgets. -/</span></span>
+<span id="cb20-160"><a href="#cb20-160" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> step_congr (hd : q.Descends) (t : ℕ) {x y : X → M.A} (e : q.h ∘ x = q.h ∘ y) :</span>
+<span id="cb20-161"><a href="#cb20-161" aria-hidden="true" tabindex="-1"></a>    q.h ∘ step nbrs (M.μ t) x = q.h ∘ step nbrs (M.μ t) y := <span class="kw">by</span></span>
+<span id="cb20-162"><a href="#cb20-162" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> c</span>
+<span id="cb20-163"><a href="#cb20-163" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> hd t c _ _ ?_</span>
+<span id="cb20-164"><a href="#cb20-164" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [List.map_map, e]</span>
+<span id="cb20-165"><a href="#cb20-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-166"><a href="#cb20-166" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **What erasing shows.** Run with what `h` forgets filled back in by the section after every</span></span>
+<span id="cb20-167"><a href="#cb20-167" aria-hidden="true" tabindex="-1"></a><span class="do">step: if neither the rule nor the callback depends on it, everything `h` keeps agrees with the</span></span>
+<span id="cb20-168"><a href="#cb20-168" aria-hidden="true" tabindex="-1"></a><span class="do">original run. So a difference disproves the map; agreement on one problem does not prove it. -/</span></span>
+<span id="cb20-169"><a href="#cb20-169" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> erased_run (hd : q.Descends) {κ : ℕ → (X → M.A) → X → M.A}</span>
+<span id="cb20-170"><a href="#cb20-170" aria-hidden="true" tabindex="-1"></a>    (hκ : q.CallbackDescends κ) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb20-171"><a href="#cb20-171" aria-hidden="true" tabindex="-1"></a>    q.h ∘ runWith nbrs M.μ (<span class="kw">fun</span> n y =&gt; q.s ∘ (q.h ∘ κ n y)) (q.s ∘ (q.h ∘ x)) n =</span>
+<span id="cb20-172"><a href="#cb20-172" aria-hidden="true" tabindex="-1"></a>      q.h ∘ runWith nbrs M.μ κ x n := <span class="kw">by</span></span>
+<span id="cb20-173"><a href="#cb20-173" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb20-174"><a href="#cb20-174" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">exact</span> q.h_comp_s_comp (q.h ∘ x)</span>
+<span id="cb20-175"><a href="#cb20-175" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt;</span>
+<span id="cb20-176"><a href="#cb20-176" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> only [runWith]</span>
+<span id="cb20-177"><a href="#cb20-177" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [q.h_comp_s_comp]</span>
+<span id="cb20-178"><a href="#cb20-178" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> hκ n _ _ (q.step_congr hd n ih)</span>
+<span id="cb20-179"><a href="#cb20-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-180"><a href="#cb20-180" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Lumping</span>
+<span id="cb20-181"><a href="#cb20-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-182"><a href="#cb20-182" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 </body>
 </html>

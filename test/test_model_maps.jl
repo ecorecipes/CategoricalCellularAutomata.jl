@@ -264,6 +264,104 @@
     @test all(t -> bigsol.u[t] == pullback(φ, smallsol.u[t]; space=Torus(15, 12)),
               eachindex(smallsol.u))
 
+    # callbacks on a quotient: lifted, run on the original's state, and mapped down
+    lifted_prob = remake(prob; kwargs=(; callback=stop()))
+    plainq = forget_layers(traced, :lineage)
+    @test is_model_map(plainq, lifted_prob; callback=:lift)
+    # against the same action written by hand for the quotient's state
+    byhand = solve(pushforward(plainq, lifted_prob; callback=stop()))
+    @test solve(pushforward(plainq, lifted_prob; callback=:lift)).u == byhand.u
+    @test byhand.u != solve(pushforward(plainq, prob)).u
+    # a callback that reads what is forgotten: the section gives lineage 0, so it never fires
+    @test !is_model_map(plainq, culled; callback=:lift)
+    @test solve(pushforward(plainq, culled; callback=:lift)).u ==
+          solve(pushforward(plainq, prob)).u
+    # it sees the time, the seed of the original problem and its parameters, and may reassign them
+    seen = Ref{Any}(nothing)
+    spy = DiscreteCallback((u, t, integ) -> t == 2,
+                           function (integ)
+                               seen[] = (integ.t, integ.prob.seed, integ.p.β,
+                                         keys(integ.u), integ.prob === lifted_spy[])
+                               return nothing
+                           end; save_positions=(false, false))
+    lifted_spy = Ref{Any}(nothing)
+    spied = remake(prob; kwargs=(; callback=spy))
+    lifted_spy[] = spied
+    solve(pushforward(plainq, spied; callback=:lift))
+    @test seen[] == (2, spied.seed, spied.p.β, (:state, :lineage), true)
+    # reassigning the parameters at a callback changes the run from then on, on both sides
+    quiet = () -> DiscreteCallback((u, t, integ) -> t == 4,
+                                   function (integ)
+                                       integ.p = merge(integ.p, (; β=0.0))
+                                       return nothing
+                                   end; save_positions=(false, false))
+    quieted = remake(prob; kwargs=(; callback=quiet()))
+    @test is_model_map(plainq, quieted; callback=:lift)
+    @test solve(quieted).u[end] != sol.u[end]
+    # it may stop the run, and both sides stop at the same step
+    halt = DiscreteCallback((u, t, integ) -> t == 6, integ -> terminate!(integ);
+                            save_positions=(false, false))
+    halted = remake(prob; kwargs=(; callback=halt))
+    hq = solve(pushforward(plainq, halted; callback=:lift))
+    @test hq.t[end] == 6 && is_model_map(plainq, halted; callback=:lift)
+    # sets and collections of callbacks, and the core's periodic and preset ones
+    sets = (CallbackSet(stop(), quiet()), (stop(), quiet()), [stop(), quiet()])
+    for cb in sets
+        @test is_model_map(plainq, remake(prob; kwargs=(; callback=cb)); callback=:lift)
+    end
+    bump! = integ -> (integ.u.state[1, 1]=:R; nothing)
+    for cb in
+        (PeriodicCallback(bump!, 5), PeriodicCallback(bump!, 5; initial_affect=true),
+         PresetTimeCallback([2, 7], bump!))
+        p2 = remake(prob; kwargs=(; callback=cb))
+        @test is_model_map(plainq, p2; callback=:lift)
+        @test solve(p2).u[end].state[1, 1] == :R
+    end
+    # a problem without a callback needs no lifting
+    @test is_model_map(plainq, prob; callback=:lift)
+    # a composite of quotients keeps a section; a hand-written codomain can give its own
+    fine = quotient(traced, c -> (state=c.state, lineage=min(c.lineage, 2)),
+                    b -> (state=b.state, lineage=b.lineage);
+                    states=CellularAutomataCore.states(traced), name=:Merged)
+    coarse = forget_layers(codom(fine), :lineage)
+    chain = compose(fine, coarse)
+    @test chain.parameters === identity && chain.section(:I) == (state=:I, lineage=0)
+    @test is_model_map(chain, lifted_prob; callback=:lift)
+    written = ModelMap(traced, sir, c -> c.state; parameters=identity,
+                       section=s -> (state=s, lineage=0))
+    @test is_model_map(written, lifted_prob; callback=:lift)
+    # and a map that cannot lift says why
+    @test_throws ArgumentError pushforward(untrace, lifted_prob; callback=:lift)
+    nosection = ModelMap(traced, sir, c -> c.state; section=s -> (state=s, lineage=0))
+    @test_throws ArgumentError pushforward(nosection, lifted_prob; callback=:lift)
+
+    # kernel fields read the lift, so forgetting a layer the field reads gives a false answer
+    # rather than a crash, and forgetting another layer leaves the field alone
+    fielded = @camodel Fielded begin
+        @states infected::Bool = false record::Int = 0
+        @parameters β = 0.05
+        @neighbourhood VonNeumann(1)
+        @fields pressure = KernelField(GaussianKernel(1.5; radius=3),
+                                       c -> Float64(c.infected))
+        @rule begin
+            i = cell.infected || bernoulli(ctx, min(1.0, β * field(ctx, :pressure)), 1)
+            (infected=i, record=cell.record + i)
+        end
+    end
+    fprob = CAProblem(fielded, (; infected=I -> I == CartesianIndex(6, 6)), 12;
+                      space=Torus(12, 12), seed=2)
+    @test count(solve(fprob).u[end].infected) > 1
+    @test is_model_map(forget_layers(fielded, :record), fprob)
+    @test !is_model_map(forget_layers(fielded, :infected), fprob)
+    @test_throws ArgumentError is_model_map(forget_layers(fielded, :record))
+    # a field given with the problem, not the model, is lifted in the same way
+    extra = CAProblem(fielded, (; infected=I -> I == CartesianIndex(6, 6)), 12; seed=2,
+                      space=Torus(12, 12),
+                      fields=(;
+                              more=KernelField(GaussianKernel(1.0; radius=2),
+                                               c -> Float64(c.infected))))
+    @test is_model_map(forget_layers(fielded, :record), extra)
+
     # errors
     @test_throws ArgumentError forget_layers(traced, :nothing)
     @test_throws ArgumentError forget_layers(traced, :state, :lineage)

@@ -61,3 +61,16 @@ open CategoricalCellularAutomataProofs
 #print axioms ModelMap.run_map
 #print axioms instCategoryCAModel
 #print axioms SpaceMap.pullFunctor
+-- Quotients.lean
+#print axioms ModelMap.runWith_map
+#print axioms Lumping.map
+#print axioms Lumping.rule_unique
+#print axioms Lumping.descends_iff_exists_rule
+#print axioms Lumping.rule_eq_of_section
+#print axioms Lumping.lift_comp
+#print axioms Lumping.lift_unique
+#print axioms Lumping.liftCallback_comm
+#print axioms Lumping.callbackDescends_iff_exists
+#print axioms Lumping.callback_unique
+#print axioms Lumping.runWith_quotient
+#print axioms Lumping.erased_run

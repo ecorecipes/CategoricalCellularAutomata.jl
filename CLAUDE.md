@@ -54,7 +54,11 @@ the `references.bib` files here are synced copies.
   callback acts on the whole state and is not moved by a map: `pushforward` and `pullback` of a problem with a
   callback raise `ArgumentError` unless `callback=` names the new problem's, and `is_model_map(f, prob)` is the
   check that includes it. The local check sees only rules. `quotient` and `forget_layers` build a codomain from
-  the domain's own rule, so nothing is written twice, and never assume the result is a map: check it.
+  the domain's own rule, so nothing is written twice, and never assume the result is a map: check it. A map with
+  a `section` and identity parameters moves a callback with `callback=:lift`: lift the state, run the callback on
+  a stand-in integrator, map down. The stand-in holds nothing that outlives a call, so a lifted callback can serve
+  ensemble threads. Kernel field sources read the lift too. A `false` from a run disproves a map; a `true` holds
+  for that problem and span only (`age` in the grapevine model first matters at month 61).
 - This package does not depend on EcologicalCellularAutomata. Only the vignette environment does (vignette
   14 uses published models); the test suite does not, and `vignettes.yml` checks the zoo out.
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with
@@ -75,7 +79,7 @@ the `references.bib` files here are synced copies.
 
 - `src/CategoricalCellularAutomata.jl`: module docstring, exports, includes.
 - `proofs/`: the Lean library (`CategoricalCellularAutomataProofs/{Basic,Configurations,CellularAutomata,
-  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces,Models}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
+  Category,CurtisHedlundLyndon,Linear,Generalized,Gluing,Spaces,Models,Quotients}.lean`), `Audit.lean`, `Makefile`, `lakefile.toml`, `lean-toolchain`, and the
   generated document; `.github/workflows/lean.yml` builds and audits it.
 - `src/errors.jl`: the root `CategoricalCellularAutomataError` and every exception under it.
 - `src/groups.jl`: `CyclicGroup`, `TorusGroup`, `FiniteGroup`. `src/configurations.jl`: `FinAlphabet`,

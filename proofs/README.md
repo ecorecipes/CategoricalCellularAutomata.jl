@@ -56,3 +56,9 @@ JuliaMono read from `../../fonts/JuliaMono/`.
    with the rules) form a category; a map of models sends every run to the run from the mapped
    initial state; moving models along a map of spaces is a functor, so maps of models and maps
    of spaces commute.
+11. `Quotients.lean`: the quotient of a model by a map of cell states with a section. Its rule
+   makes the map a map of models exactly when the dynamics do not depend on what is forgotten;
+   it is then the only such rule, whichever section is used, and has the universal property of
+   a quotient. Callbacks lift in the same way, and the quotient with its lifted callback runs
+   every run of the original, mapped down. Erasing what is forgotten after every step leaves
+   the rest unchanged when there is no feedback, so a difference disproves the map.

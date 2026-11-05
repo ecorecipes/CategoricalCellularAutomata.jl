@@ -32,6 +32,11 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `CAModel`, `ModelMap`, `instCategoryCAModel` | `CAModel`, `ModelMap`, `compose`, `id`, `is_model_map` | models and the maps of cell states commuting with their rules form a category |
 | `ModelMap.run_map` | `pushforward(f, prob)` | a map of models sends every run to the run from the mapped initial state |
 | `SpaceMap.pullFunctor` | `pullback(f, prob; space)`, `pushforward` | moving models along a map of spaces is a functor: maps of models and of spaces commute |
+| `Lumping`, `Lumping.model` | `quotient(model, h, section)`, `forget_layers` | the quotient's rule: lift the neighbours, apply the rule, map the result down |
+| `Lumping.descends_iff_exists_rule`, `Lumping.rule_unique` | `is_model_map` on a quotient | `h` commutes with some rule exactly when the dynamics do not depend on what it forgets; that rule is the quotient's, whichever section is used |
+| `Lumping.lift_comp`, `Lumping.lift_unique` | `quotient` | the universal property: maps of models that do not distinguish what `h` forgets factor through the quotient, uniquely |
+| `Lumping.liftCallback`, `Lumping.runWith_quotient` | `pushforward(f, prob; callback=:lift)` | a callback lifts when it does not depend on what is forgotten, and the quotient with it runs every run of the original, mapped down |
+| `Lumping.erased_run` | `is_model_map(f, prob)` | what a run can show: without feedback, erasing what is forgotten changes nothing kept, so a difference disproves the map |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
 main theorem uses (only `propext`, `Classical.choice` and `Quot.sound` are expected).
