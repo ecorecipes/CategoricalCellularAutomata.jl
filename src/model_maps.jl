@@ -87,7 +87,7 @@ end
 
 """
     pushforward(f::ModelMap, u)
-    pushforward(f::ModelMap, prob::CAProblem; callback) -> CAProblem
+    pushforward(f::ModelMap, prob::CAProblem; callback, alg) -> CAProblem
 
 The state `u` of a problem of `f`'s domain mapped by `f`, cell by cell: a
 state of its codomain. The second form maps a problem of the domain (built
@@ -112,6 +112,17 @@ depends on it, or keeps something there for later, changes the run. A map of
 models says nothing about callbacks, so check the pair by running both with
 [`is_model_map`](@ref).
 
+`:lift` maps down between the rule and the callback, so a layer that the rule
+writes and the callback reads in the same step is gone before it is read.
+`callback=:lift_step` treats the rule and the callback as one step, under the same
+conditions on `f`: the state is lifted, the original problem takes a whole step
+with the scheme `alg` (by default `Synchronous()`, and the only use of `alg`), and
+the result is mapped down. So `f` may forget what lives only inside a step, and
+when `:lift` gives a map the two give the same run. The new problem is solved
+with `solve(new)`, on the default backend and scheme whatever the original uses,
+since its rule and callback are the original's whole step and run on the
+original's own backend. Callbacks given to it act between whole steps.
+
 A problem whose rule is not the domain's raises [`DomainMismatchError`](@ref);
 a mapped initial state outside a state variable's domain raises
 `CellularAutomataCore.InvalidStateError`, and a missing covariate of the
@@ -131,11 +142,8 @@ function _retarget(rule, f::ModelMap)
                                      f.dom.rule, rule))
 end
 
-function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET)
-    callback === :lift && (callback = _lift_callback(f, prob))
-    keywords = _moved_keywords(prob, callback,
-                               "pushing a problem forward along a map of models")
-    rule = _retarget(prob.rule, f)
+# The state of the codomain from the domain's, checked against its state variables' domains.
+function _mapped_initial_state(f::ModelMap, prob::CAC.CAProblem)
     u0 = pushforward(f, prob.u0)
     layers = length(f.codom.states) == 1 ? (u0,) : values(u0)
     for (s, a) in zip(f.codom.states, layers)
@@ -145,6 +153,19 @@ function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET)
             throw(CAC.InvalidStateError("model $(f.codom.name)", i, a[i],
                                         "state $(s.name) must lie in $(s.domain)"))
     end
+    return u0
+end
+
+function pushforward(f::ModelMap, prob::CAC.CAProblem; callback=_UNSET, alg=nothing)
+    callback === :lift_step &&
+        return _whole_step_problem(f, prob, alg === nothing ? CAC.Synchronous() : alg)
+    alg === nothing ||
+        throw(ArgumentError("pushforward uses `alg` only with `callback=:lift_step`; otherwise give the scheme to `solve`"))
+    callback === :lift && (callback = _lift_callback(f, prob))
+    keywords = _moved_keywords(prob, callback,
+                               "pushing a problem forward along a map of models")
+    rule = _retarget(prob.rule, f)
+    u0 = _mapped_initial_state(f, prob)
     for c in f.codom.covariates
         haskey(prob.covariates, c) ||
             throw(ArgumentError("model $(f.codom.name) needs covariate $c, which the problem does not have"))
@@ -214,7 +235,8 @@ exactly. It is the check for models that read covariates or kernel fields,
 which the first form refuses, and for callbacks; a block rule needs
 `alg=Margolus()`. `callback` is
 as for `pushforward`, so `callback=:lift` checks a quotient with the original's
-callback. A `false` disproves the map; a `true` holds for that problem and span
+callback and `callback=:lift_step` one that treats the rule and the callback as
+one step. A `false` disproves the map; a `true` holds for that problem and span
 only, since a run may not reach what would tell them apart.
 """
 function is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts::Integer=8,
@@ -271,7 +293,9 @@ end
 function is_model_map(f::ModelMap, prob::CAC.CAProblem; alg=CAC.Synchronous(),
                       callback=_UNSET, kwargs...)
     sol = CAC.solve(prob, alg; kwargs...)
-    other = CAC.solve(pushforward(f, prob; callback), alg; kwargs...)
+    other = callback === :lift_step ?
+            CAC.solve(pushforward(f, prob; callback, alg); kwargs...) :
+            CAC.solve(pushforward(f, prob; callback), alg; kwargs...)
     return sol.t == other.t &&
            all(t -> isequal(pushforward(f, sol.u[t]), other.u[t]), eachindex(sol.u))
 end
@@ -336,12 +360,102 @@ function _lift_one(f::ModelMap, cb::Union{Tuple,AbstractVector}, prob)
     return map(c -> _lift_one(f, c, prob), cb)
 end
 
-function _lift_callback(f::ModelMap, prob::CAC.CAProblem)
+function _check_liftable(f::ModelMap, how)
     f.section === nothing &&
         throw(ArgumentError("$f has no section to lift the state with; give one with `section=`, or use `quotient`"))
     f.parameters === identity ||
-        throw(ArgumentError("$f maps parameters, and a lifted callback reads the domain's: `callback=:lift` needs `parameters=identity`"))
+        throw(ArgumentError("$f maps parameters, and a lifted callback reads the domain's: `callback=$how` needs `parameters=identity`"))
+    return nothing
+end
+
+function _lift_callback(f::ModelMap, prob::CAC.CAProblem)
+    _check_liftable(f, ":lift")
     return _lift_one(f, get(prob.kwargs, :callback, nothing), prob)
+end
+
+# The rule of a problem moved with `callback=:lift_step`. It has no local form: one step of the
+# new problem lifts the state, takes a whole step of the original problem with its own integrator,
+# and maps the result down. That integrator belongs to one run (it lives in the backend's state,
+# made by `init`), so callbacks keep what they keep from step to step, and ensembles can share the
+# problem.
+struct _WholeStepRule{F<:ModelMap,P<:CAC.CAProblem,A} <: CAC.AbstractRule
+    map::F
+    problem::P
+    alg::A
+end
+Base.show(io::IO, r::_WholeStepRule) = print(io, "whole step of ", r.problem.rule)
+CAC.neighbourhood(::_WholeStepRule) = nothing
+function CAC.local_rule(::_WholeStepRule, cell, nbrs, ctx)
+    return throw(ArgumentError("a problem moved with `callback=:lift_step` has no local rule: solve it with `solve(prob)`, on the default backend and scheme, and give the original's scheme to `pushforward` as `alg`"))
+end
+
+mutable struct _WholeStepState{U,I}
+    u::U
+    const inner::I
+end
+
+function CAC.allocate_state(::CAC.ArrayBackend, prob::CAC.CAProblem{<:_WholeStepRule},
+                            ::CAC.Synchronous)
+    r = prob.rule
+    start = CAC.remake(r.problem; u0=_lift_state(r.map, prob.u0), tspan=prob.tspan,
+                       p=prob.p, seed=prob.seed, covariates=prob.covariates,
+                       mask=prob.mask)
+    inner = CAC.init(start, r.alg; saveat=nothing, save_everystep=false, save_start=false,
+                     save_end=false)
+    return _WholeStepState(pushforward(r.map, inner.u), inner)
+end
+
+function CAC.advance!(::CAC.ArrayBackend, st::_WholeStepState, prob, ::CAC.Synchronous, p,
+                      t)
+    inner = st.inner
+    inner.t = t
+    inner.p = p
+    inner.u = _lift_state(prob.rule.map, st.u)
+    CAC.step!(inner)
+    st.u = pushforward(prob.rule.map, inner.u)
+    return nothing
+end
+
+CAC.current_state(::CAC.ArrayBackend, st::_WholeStepState) = st.u
+function CAC.set_state!(::CAC.ArrayBackend, st::_WholeStepState, u)
+    st.u = u isa NamedTuple ? map(copy, u) : copy(u)
+    return nothing
+end
+function CAC._restart!(st::_WholeStepState, prob, p, t0)
+    CAC.reinit!(st.inner, _lift_state(prob.rule.map, st.u); t0)
+    st.u = pushforward(prob.rule.map, st.inner.u)
+    return nothing
+end
+
+# What the original's callbacks do to the run beyond the state: reassign the parameters, stop it,
+# and finish.
+function _whole_step_callback()
+    affect! = function (integ)
+        inner = integ.state.inner
+        integ.p = inner.p
+        inner.retcode == CAC.ReturnCode.Terminated && CAC.terminate!(integ)
+        CAC.u_modified!(integ, false)
+        return nothing
+    end
+    finalize = function (c, u, t, integ)
+        inner = integ.state.inner
+        foreach(cb -> cb.finalize(cb, inner.u, inner.t, inner), inner.callbacks)
+        return nothing
+    end
+    return CAC.DiscreteCallback((u, t, integ) -> true, affect!; finalize,
+                                save_positions=(false, false))
+end
+
+function _whole_step_problem(f::ModelMap, prob::CAC.CAProblem, alg)
+    _check_liftable(f, ":lift_step")
+    alg isa CAC.Gillespie &&
+        throw(ArgumentError("`callback=:lift_step` needs a scheme with whole steps, not $alg"))
+    _retarget(prob.rule, f)
+    u0 = _mapped_initial_state(f, prob)
+    keywords = Base.structdiff(prob.kwargs, (; callback=nothing, backend=nothing))
+    return CAC.CAProblem(_WholeStepRule(f, prob, alg), u0, prob.tspan, prob.p;
+                         space=prob.space, seed=prob.seed, covariates=prob.covariates,
+                         mask=prob.mask, callback=_whole_step_callback(), keywords...)
 end
 
 # A kernel field's source reads a cell state of the domain, so it reads the lift of the codomain's.
@@ -393,7 +507,8 @@ the dynamics do not depend on the lift: [`is_model_map`](@ref) is the real test
 of that, and fails when what `h` forgets feeds back. When it is one, this is the
 only rule that `h` commutes with, whichever section is used, and every map of
 models that does not distinguish what `h` forgets factors through it. A problem
-with a callback moves with `callback=:lift`
+with a callback moves with `callback=:lift`, or `callback=:lift_step` to treat the
+rule and the callback as one step
 ([`pushforward`](@ref pushforward(::ModelMap, ::Any))). A block rule's quotient is
 a block rule, lifting the block and mapping the new block down. Event rules, whose
 rule gives rates rather than a next state, raise `ArgumentError`.

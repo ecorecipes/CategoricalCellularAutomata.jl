@@ -421,6 +421,181 @@
                                         states=[StateVariable(:x, 0)])
     @test_throws ArgumentError is_model_map(ModelMap(events, events, identity))
 
+    # a rule and its callback as one step. `scratch` is written by the rule, read by the callback
+    # in the same step, and overwritten by the next rule, so it lives only inside a step
+    scratchy = @camodel Scratchy begin
+        @states level::Int = 0 scratch::Int = 0
+        @parameters gain = 1
+        @neighbourhood VonNeumann(1)
+        @rule begin
+            n = sum(x -> x.level, nbrs)
+            (level=cell.level, scratch=(cell.level + n + gain) % 5)
+        end
+    end
+    settle = () -> DiscreteCallback((u, t, integ) -> true,
+                                    function (integ)
+                                        integ.u.level .= integ.u.scratch
+                                        return nothing
+                                    end; save_positions=(false, false))
+    start = (level=rand(rng, 0:4, 12, 10), scratch=rand(rng, 0:4, 12, 10))
+    sprob = CAProblem(scratchy, start, 20, (; gain=2); space=Torus(12, 10), seed=8,
+                      callback=settle())
+    noscratch = forget_layers(scratchy, :scratch)
+    # the rule does not read it, so the rules commute, yet the separate quotient loses it
+    @test is_model_map(noscratch; cells=[(level=l, scratch=s) for l in 0:1, s in 0:1],
+                       p=(; gain=2))
+    @test !is_model_map(noscratch, sprob; callback=:lift)
+    @test is_model_map(noscratch, sprob; callback=:lift_step)
+    whole = pushforward(noscratch, sprob; callback=:lift_step)
+    @test occursin("whole step of", sprint(show, whole.rule))
+    orig = solve(sprob)
+    @test orig.u[end].level != start.level
+    @test solve(whole).u == [u.level for u in orig.u]
+    @test whole.u0 == start.level && !haskey(whole.kwargs, :backend)
+    # the lift does not hide a dependence: the first step starts from the lift, not the original
+    # state, and a value that stays between steps still breaks the map
+    @test !is_model_map(forget_layers(scratchy, :level), sprob; callback=:lift_step)
+    carried = @camodel Carried begin
+        @states level::Int = 0 memory::Int = 0
+        @neighbourhood VonNeumann(1)
+        @rule (level=cell.level, memory=cell.memory)
+    end
+    fromlast = DiscreteCallback((u, t, integ) -> true,
+                                function (integ)
+                                    integ.u.level .= integ.u.memory
+                                    return nothing
+                                end; save_positions=(false, false))
+    cprob2 = CAProblem(carried, (level=zeros(Int, 6, 6), memory=ones(Int, 6, 6)), 3;
+                       space=Torus(6, 6), callback=fromlast)
+    @test !is_model_map(forget_layers(carried, :memory), cprob2; callback=:lift_step)
+    # with a map under `:lift` the whole step is the same run
+    @test is_model_map(plainq, lifted_prob; callback=:lift_step)
+    @test solve(pushforward(plainq, lifted_prob; callback=:lift_step)).u ==
+          solve(pushforward(plainq, lifted_prob; callback=:lift)).u
+    @test is_model_map(plainq, prob; callback=:lift_step)  # stochastic, no callback
+    @test !is_model_map(plainq, culled; callback=:lift_step)
+    # sets, periodic and preset callbacks, solver keywords stored and given
+    for cb in
+        (CallbackSet(stop(), quiet()), [stop(), quiet()], PeriodicCallback(bump!, 5),
+         PeriodicCallback(bump!, 5; initial_affect=true),
+         PresetTimeCallback([2, 7], bump!))
+        @test is_model_map(plainq, remake(prob; kwargs=(; callback=cb));
+                           callback=:lift_step)
+    end
+    @test is_model_map(noscratch, sprob; callback=:lift_step, saveat=5)
+    @test solve(whole; saveat=5).t == 0:5:20
+    stored = remake(sprob; kwargs=(; callback=settle(), saveat=4))
+    @test solve(pushforward(noscratch, stored; callback=:lift_step)).t == 0:4:20
+    # the callback sees the original state, time, seed and parameters; it may reassign and stop
+    seen2 = Ref{Any}(nothing)
+    spy2 = DiscreteCallback((u, t, integ) -> t == 2,
+                            function (integ)
+                                seen2[] = (integ.t, integ.prob.seed, integ.p.gain,
+                                           keys(integ.u))
+                                return nothing
+                            end; save_positions=(false, false))
+    solve(pushforward(noscratch, remake(sprob; kwargs=(; callback=spy2));
+                      callback=:lift_step))
+    @test seen2[] == (2, sprob.seed, 2, (:level, :scratch))
+    regain = DiscreteCallback((u, t, integ) -> t == 4,
+                              function (integ)
+                                  integ.p = merge(integ.p, (; gain=4))
+                                  return nothing
+                              end; save_positions=(false, false))
+    both = remake(sprob; kwargs=(; callback=CallbackSet(settle(), regain)))
+    @test is_model_map(noscratch, both; callback=:lift_step)
+    @test solve(both).u[end] != orig.u[end]
+    halted2 = remake(sprob;
+                     kwargs=(;
+                             callback=CallbackSet(settle(),
+                                                  DiscreteCallback((u, t, integ) -> t == 6,
+                                                                   integ -> terminate!(integ);
+                                                                   save_positions=(false,
+                                                                                   false)))))
+    hs = solve(pushforward(noscratch, halted2; callback=:lift_step))
+    @test hs.t[end] == 6 && hs.retcode == solve(halted2).retcode
+    @test is_model_map(noscratch, halted2; callback=:lift_step)
+    # finalize runs once, and a callback given to the new problem acts between whole steps
+    finished = Ref(0)
+    closing = DiscreteCallback((u, t, integ) -> false, integ -> nothing;
+                               finalize=(c, u, t, integ) -> (finished[] += 1; nothing),
+                               save_positions=(false, false))
+    solve(pushforward(noscratch, remake(sprob; kwargs=(; callback=closing));
+                      callback=:lift_step))
+    @test finished[] == 1
+    outer = DiscreteCallback((u, t, integ) -> t == 3,
+                             function (integ)
+                                 integ.u .= 0
+                                 return nothing
+                             end; save_positions=(false, false))
+    after = solve(whole; callback=outer)
+    @test after.u[4] == zeros(Int, 12, 10) && after.u[5] != orig.u[5].level
+    # a new start, a new seed and an ensemble each run their own whole steps, without sharing
+    integ = init(whole)
+    step!(integ, 7)
+    reinit!(integ)
+    @test solve!(integ).u == solve(whole).u
+    noisy = @camodel Noisy begin
+        @states level::Int = 0 scratch::Int = 0
+        @neighbourhood VonNeumann(1)
+        @rule (level=cell.level, scratch=uniform(ctx, 1) < 0.5 ? 1 : 0)
+    end
+    nprob = CAProblem(noisy, (level=zeros(Int, 8, 8), scratch=zeros(Int, 8, 8)), 6;
+                      space=Torus(8, 8), seed=2, callback=settle())
+    nf = forget_layers(noisy, :scratch)
+    @test !is_model_map(nf, nprob; callback=:lift)
+    @test is_model_map(nf, nprob; callback=:lift_step)
+    nwhole = pushforward(nf, nprob; callback=:lift_step)
+    @test solve(remake(nwhole; seed=3)).u ==
+          [u.level for u in solve(remake(nprob; seed=3)).u]
+    @test solve(remake(nwhole; seed=3)).u != solve(nwhole).u
+    ens = solve(EnsembleProblem(nwhole), Synchronous(), EnsembleThreads(); trajectories=6)
+    @test all(i -> ens.u[i].u == [u.level
+                                  for u in solve(remake(nprob; seed=nprob.seed + i)).u],
+              1:6)
+    # another scheme or a stored backend for the original, and a problem moved along a map of spaces
+    @test is_model_map(noscratch,
+                       remake(sprob;
+                              kwargs=(; callback=settle(),
+                                      backend=ReferenceBackend()));
+                       callback=:lift_step)
+    moved_space = pullback(covering(Torus(24, 20), Torus(12, 10), VonNeumann(1)), sprob;
+                           space=Torus(24, 20), callback=settle())
+    @test is_model_map(noscratch, moved_space; callback=:lift_step)
+    @test is_model_map(noscratch, sprob; alg=RandomSequential(), callback=:lift_step)
+    # a block rule with a callback that reads what the block rule just wrote
+    blocky = CAModel(BlockRule((b, ctx) -> map(c -> (x=c.x, mark=1 - c.x), b));
+                     name=:Blocky,
+                     states=[StateVariable(:x, 0; domain=(0, 1)),
+                             StateVariable(:mark, 0; domain=(0, 1))])
+    flip = DiscreteCallback((u, t, integ) -> true,
+                            function (integ)
+                                integ.u.x .= integ.u.mark
+                                return nothing
+                            end; save_positions=(false, false))
+    bprob = CAProblem(blocky, (x=rand(rng, 0:1, 8, 8), mark=zeros(Int, 8, 8)), 5;
+                      space=Torus(8, 8), callback=flip)
+    fb = forget_layers(blocky, :mark)
+    @test !is_model_map(fb, bprob; alg=Margolus(), callback=:lift)
+    @test is_model_map(fb, bprob; alg=Margolus(), callback=:lift_step)
+    # what it refuses, and why
+    @test_throws ArgumentError pushforward(noscratch, sprob; alg=Synchronous())
+    @test_throws ArgumentError pushforward(noscratch, sprob; callback=:lift, alg=Margolus())
+    @test_throws ArgumentError pushforward(untrace, lifted_prob; callback=:lift_step)
+    @test_throws ArgumentError pushforward(nosection, lifted_prob; callback=:lift_step)
+    @test_throws ArgumentError pushforward(noscratch, sprob; callback=:lift_step,
+                                           alg=Gillespie())
+    @test_throws DomainMismatchError pushforward(noscratch, prob; callback=:lift_step)
+    @test_throws ArgumentError solve(whole; backend=ReferenceBackend())
+    @test_throws ArgumentError solve(whole, RandomSequential())
+    @test_throws CellularAutomataCore.InvalidStateError pushforward(ModelMap(traced, sir,
+                                                                             c -> :X;
+                                                                             parameters=identity,
+                                                                             section=s -> (state=s,
+                                                                                           lineage=0)),
+                                                                    prob;
+                                                                    callback=:lift_step)
+
     # errors
     @test_throws ArgumentError forget_layers(traced, :nothing)
     @test_throws ArgumentError forget_layers(traced, :state, :lineage)

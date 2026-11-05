@@ -39,6 +39,8 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `Lumping.descends_iff_exists_rule`, `Lumping.rule_unique` | `is_model_map` on a quotient | `h` commutes with some rule exactly when the dynamics do not depend on what it forgets; that rule is the quotient's, whichever section is used |
 | `Lumping.lift_comp`, `Lumping.lift_unique` | `quotient` | the universal property: maps of models that do not distinguish what `h` forgets factor through the quotient, uniquely |
 | `Lumping.liftCallback`, `Lumping.runWith_quotient` | `pushforward(f, prob; callback=:lift)` | a callback lifts when it does not depend on what is forgotten, and the quotient with it runs every run of the original, mapped down |
+| `wholeStep`, `Lumping.runWith_wholeStep_quotient`, `Lumping.wholeStep_unique` | `pushforward(f, prob; callback=:lift_step)` | the rule and the callback as one step: when a whole step does not depend on what is forgotten, the quotient of it runs every run of the original, mapped by `h`, and is the only such step |
+| `Lumping.wholeStep_descends`, `Lumping.liftCallback_wholeStep`, `wholeStep_strictly_more` | `callback=:lift_step` and `callback=:lift` | what descends separately descends together, with the same result, and the converse fails: a rule can write a layer that its callback reads |
 | `BlockLumping`, `BlockLumping.blockRun_quotient` | `quotient` of a model with a `BlockRule` | block rules: the same construction on blocks of states, and the quotient runs every run of the original, mapped down |
 | `Lumping.erased_run` | `is_model_map(f, prob)` | what a run can show: without feedback, erasing what is forgotten changes nothing kept, so a difference disproves the map |
 
@@ -979,6 +981,14 @@ lifts in the same way, `y ↦ h ∘ κ (s ∘ y)`, under the same kind of condit
 every run of the original mapped by `h` (`Lumping.runWith_quotient`). The package's
 `pushforward(f, prob; callback=:lift)` is this construction.
 
+Mapping down between the rule and the callback loses whatever lives only inside a step: a layer
+the rule writes, the callback reads, and the next rule overwrites. The rule and the callback can
+instead be treated as one step, `wholeStep`. The same construction applies to it: lift the
+configuration, take the step, map down. `Lumping.wholeStep_descends` and
+`Lumping.liftCallback_wholeStep` show this extends the separate construction, and
+`wholeStep_strictly_more` shows the extension is strict. The package's
+`pushforward(f, prob; callback=:lift_step)` is this construction.
+
 Block rules, whose cells are written a block at a time, get the same construction one level up
 (`BlockLumping`). Together with `Lumping` this covers every rule `quotient` accepts.
 
@@ -1011,6 +1021,24 @@ theorem ModelMap.runWith_map {M N : CAModel X} (F : ModelMap M N)
   induction n with
   | zero => rfl
   | succ n ih => simp only [runWith, ih, ModelMap.step_map, hκ]
+
+/-- One step with its callback, as a single map of configurations. -/
+def wholeStep {A : Type u} (nbrs : X → List X) (μ : ℕ → X → List A → A)
+    (κ : ℕ → (X → A) → X → A) (n : ℕ) (x : X → A) : X → A :=
+  κ n (step nbrs (μ n) x)
+
+/-- The run of any time-dependent map of configurations. -/
+def iterateStep {A : Type u} (G : ℕ → (X → A) → X → A) (x : X → A) : ℕ → X → A
+  | 0 => x
+  | n + 1 => G n (iterateStep G x n)
+
+/-- A run with a callback is the run of its whole steps. -/
+theorem runWith_eq_iterateStep {A : Type u} (μ : ℕ → X → List A → A)
+    (κ : ℕ → (X → A) → X → A) (x : X → A) (n : ℕ) :
+    runWith nbrs μ κ x n = iterateStep (wholeStep nbrs μ κ) x n := by
+  induction n with
+  | zero => rfl
+  | succ n ih => simp only [runWith, iterateStep, wholeStep, ih]
 
 /-- A way to forget something about cell states of `M`, and to fill it back in. -/
 structure Lumping (M : CAModel X) (B : Type u) where
@@ -1144,6 +1172,53 @@ theorem runWith_quotient (hd : q.Descends) {κ : ℕ → (X → M.A) → X → M
     runWith nbrs q.model.μ (q.liftCallback κ) (q.h ∘ x) n = q.h ∘ runWith nbrs M.μ κ x n :=
   (q.map hd).runWith_map κ (q.liftCallback κ) (q.liftCallback_comm hκ) x n
 
+/-- The quotient of any map of configurations that does not depend on what `h` forgets runs its
+runs mapped by `h`. `liftCallback` and `CallbackDescends` do not use that `G` is a callback, so
+what they say about callbacks, existence and uniqueness included, holds for whole steps. -/
+theorem iterateStep_quotient {G : ℕ → (X → M.A) → X → M.A} (hG : q.CallbackDescends G)
+    (x : X → M.A) (n : ℕ) :
+    iterateStep (q.liftCallback G) (q.h ∘ x) n = q.h ∘ iterateStep G x n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    simp only [iterateStep]
+    rw [ih]
+    exact (q.liftCallback_comm hG n _).symm
+
+/-- **Treating the rule and the callback as one step, the quotient runs every run of the original,
+mapped by `h`**, when what a whole step leaves does not depend on what `h` forgets. Neither the
+rule nor the callback need satisfy that alone. -/
+theorem runWith_wholeStep_quotient {κ : ℕ → (X → M.A) → X → M.A}
+    (hG : q.CallbackDescends (wholeStep nbrs M.μ κ)) (x : X → M.A) (n : ℕ) :
+    iterateStep (q.liftCallback (wholeStep nbrs M.μ κ)) (q.h ∘ x) n =
+      q.h ∘ runWith nbrs M.μ κ x n := by
+  rw [runWith_eq_iterateStep]
+  exact q.iterateStep_quotient hG x n
+
+/-- **Any whole step that `h` commutes with is the lifted one.** -/
+theorem wholeStep_unique {κ : ℕ → (X → M.A) → X → M.A} {G' : ℕ → (X → B) → X → B}
+    (comm : ∀ n x, q.h ∘ wholeStep nbrs M.μ κ n x = G' n (q.h ∘ x)) :
+    G' = q.liftCallback (wholeStep nbrs M.μ κ) :=
+  q.callback_unique comm
+
+/-- The original's step from a lifted configuration, mapped down, is the quotient's step. -/
+theorem h_step_lift (t : ℕ) (y : X → B) :
+    q.h ∘ step nbrs (M.μ t) (q.s ∘ y) = step nbrs (q.model.μ t) y := by
+  funext c
+  simp only [Function.comp_apply, step, Lumping.model, List.map_map]
+
+/-- **When the callback does not depend on what `h` forgets, lifting the whole step is the separate
+construction**: the quotient's rule, then the lifted callback. No condition on the rule is needed:
+the quotient's rule is defined by lifting. -/
+theorem liftCallback_wholeStep {κ : ℕ → (X → M.A) → X → M.A} (hκ : q.CallbackDescends κ) :
+    q.liftCallback (wholeStep nbrs M.μ κ) = wholeStep nbrs q.model.μ (q.liftCallback κ) := by
+  funext n y
+  show q.h ∘ κ n (step nbrs (M.μ n) (q.s ∘ y)) =
+    q.h ∘ κ n (q.s ∘ step nbrs (q.model.μ n) y)
+  apply hκ
+  rw [q.h_comp_s_comp, q.h_step_lift]
+  rfl
+
 /-- One step from configurations that `h` does not distinguish gives results it does not
 distinguish, when the rule does not depend on what it forgets. -/
 theorem step_congr (hd : q.Descends) (t : ℕ) {x y : X → M.A} (e : q.h ∘ x = q.h ∘ y) :
@@ -1166,7 +1241,63 @@ theorem erased_run (hd : q.Descends) {κ : ℕ → (X → M.A) → X → M.A}
     rw [q.h_comp_s_comp]
     exact hκ n _ _ (q.step_congr hd n ih)
 
+/-- **What holds of the rule and the callback separately holds of the whole step.** -/
+theorem wholeStep_descends (hd : q.Descends) {κ : ℕ → (X → M.A) → X → M.A}
+    (hκ : q.CallbackDescends κ) : q.CallbackDescends (wholeStep nbrs M.μ κ) :=
+  fun n _ _ e => hκ n _ _ (q.step_congr hd n e)
+
 end Lumping
+
+/-- A model on one cell with a kept layer and a scratch layer: its rule copies the kept layer to
+the scratch layer. -/
+def scratchModel : CAModel PUnit.{1} where
+  A := Bool × Bool
+  μ _ _ l := match l with
+    | [a] => (a.1, a.1)
+    | _ => (false, false)
+
+/-- Forgetting the scratch layer. -/
+def scratchLumping : Lumping scratchModel Bool where
+  h := Prod.fst
+  s b := (b, false)
+  h_s _ := rfl
+
+/-- **The whole step strictly extends the separate construction.** A rule writes a layer that it
+does not read, and a callback reads it in the same step. The rule lets `h` forget that layer and the
+whole step does too, but the callback does not, so by `Lumping.callbackDescends_iff_exists` no
+callback of the smaller state commutes with it. -/
+theorem wholeStep_strictly_more :
+    ∃ κ : ℕ → (PUnit.{1} → Bool × Bool) → PUnit.{1} → Bool × Bool,
+      scratchLumping.Descends ∧ ¬ scratchLumping.CallbackDescends κ ∧
+        scratchLumping.CallbackDescends (wholeStep (fun c => [c]) scratchModel.μ κ) := by
+  refine ⟨fun _ x c => ((x c).2, (x c).2), ?_, ?_, ?_⟩
+  · intro t c l l' e
+    cases l with
+    | nil =>
+      cases l' with
+      | nil => rfl
+      | cons _ _ => simp at e
+    | cons a l =>
+      cases l' with
+      | nil => simp at e
+      | cons a' l' =>
+        simp only [List.map_cons, List.cons.injEq] at e
+        cases l with
+        | nil =>
+          cases l' with
+          | nil => exact e.1
+          | cons _ _ => simp at e
+        | cons _ _ =>
+          cases l' with
+          | nil => simp at e
+          | cons _ _ => rfl
+  · intro hκ
+    have := congrFun
+      (hκ 0 (fun _ => (true, true)) (fun _ => (true, false)) rfl) PUnit.unit
+    simp [scratchLumping] at this
+  · intro n x x' e
+    funext c
+    exact congrFun e c
 ```
 
 ## Block rules

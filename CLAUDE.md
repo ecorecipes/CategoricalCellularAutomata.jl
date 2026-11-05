@@ -59,7 +59,13 @@ the `references.bib` files here are synced copies.
   a stand-in integrator, map down. The stand-in holds nothing that outlives a call, so a lifted callback can serve
   ensemble threads. Kernel field sources read the lift too. A block rule's quotient is a block rule, and the
   local check compares blocks; event rules are refused. A `false` from a run disproves a map; a `true` holds
-  for that problem and span only (`age` in the grapevine model first matters at month 61).
+  for that problem and span only (`age` in the grapevine model first matters at month 61). `callback=:lift` maps
+  down between rule and callback, so it loses a layer the rule writes and the callback reads; `callback=:lift_step`
+  takes the original's whole step between the lift and the map down. Its problem has a `_WholeStepRule`, with no
+  local form, that dispatches `allocate_state` and `advance!` for `ArrayBackend` and `Synchronous`; the original's
+  scheme goes to `pushforward` as `alg`. Each run owns the original's integrator through the backend state, so
+  callbacks keep their own state and ensembles share nothing; every step starts from the lift, never from the
+  integrator's previous state, or what is forgotten would be carried along and any `h` would pass.
 - This package does not depend on EcologicalCellularAutomata. Only the vignette environment does (vignette
   14 uses published models); the test suite does not, and `vignettes.yml` checks the zoo out.
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with

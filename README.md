@@ -41,7 +41,8 @@ Part of the ecorecipes cellular-automata ecosystem: `CellularAutomataCore.jl` â†
   models: maps of cell states commuting with two models' rules (`ModelMap`, checked on every local
   configuration by `is_model_map`), which send every run to a run, stochastic ones included
   (`pushforward`), form a category, and commute with moving models between spaces; quotients that need no
-  rule or callback of their own (`quotient`, `forget_layers`, `callback=:lift`).
+  rule or callback of their own (`quotient`, `forget_layers`, `callback=:lift`), or that treat a rule and its
+  callback as one step (`callback=:lift_step`).
 - **Formal proofs**: a Lean 4 / Mathlib library in [`proofs/`](proofs/README.md) proves, for any group and
   alphabet, the laws the test suite checks numerically: shifts and pullbacks, equivariance and equality at
   the identity, composition and pairing, the cartesian monoidal category of cellular automata,

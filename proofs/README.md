@@ -61,5 +61,8 @@ JuliaMono read from `../../fonts/JuliaMono/`.
    it is then the only such rule, whichever section is used, and has the universal property of
    a quotient. Callbacks lift in the same way, and the quotient with its lifted callback runs
    every run of the original, mapped down. Erasing what is forgotten after every step leaves
-   the rest unchanged when there is no feedback, so a difference disproves the map. Block rules
+   the rest unchanged when there is no feedback, so a difference disproves the map. The rule and
+   the callback can also be treated as one step: this needs only that the whole step does not
+   depend on what is forgotten, gives the same result when each part descends alone, and is
+   strictly more general, since a rule can write a layer that its callback reads. Block rules
    get the same construction on blocks of states.

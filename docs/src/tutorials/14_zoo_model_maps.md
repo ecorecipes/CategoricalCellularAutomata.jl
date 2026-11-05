@@ -13,6 +13,7 @@ Simon Frost
   anything](#a-block-rule-enemies-that-cannot-catch-anything)
 - [A short run can hide a
   dependence](#a-short-run-can-hide-a-dependence)
+- [A layer used only within a step](#a-layer-used-only-within-a-step)
 - [What a quotient cannot express](#what-a-quotient-cannot-express)
 - [Summary](#summary)
 - [References](#references)
@@ -269,27 +270,97 @@ is younger than 60 months, and the lift makes every vine a new one, so
 the two runs agree until the first vines come of age. No run shorter
 than that could tell them apart.
 
-## What a quotient cannot express
+## A layer used only within a step
 
 Some layers matter within a step and not between steps. The ash borer’s
 `larvae1` is written by the rule and read by the callback in the same
 step, and the next rule overwrites it without reading it, so what a
-saved state holds in that layer is never used. Even so, forgetting it is
-not a map of this kind:
+saved state holds in that layer is never used. Even so, a lifted
+callback cannot forget it. It maps down between the rule and the
+callback, so the larvae are gone before the callback can see them.
+
+`callback=:lift_step` treats the rule and the callback as one step: it
+lifts the state, runs the original’s whole step, and maps the result
+down. Every step starts from the lift rather than from where the
+original’s last step ended, so what is forgotten cannot be carried
+along, and a layer that matters still fails. The first check below
+compares the two constructions:
 
 ``` julia
-forgets(:emerald_ash_borer, :larvae1; kw=(; n=41))
+function both_ways(id, layer; kw=(;))
+    f, prob = forget_layers(build(id), layer), problem(id; kw...)
+    return (model=id, layer, setting=join(("$k=$v" for (k, v) in pairs(kw) if k != :n), ", "),
+            lifted_callback=is_model_map(f, prob; callback=:lift),
+            whole_step=is_model_map(f, prob; callback=:lift_step))
+end
+[both_ways(:emerald_ash_borer, :larvae1; kw=(; n=41)),
+ both_ways(:eab_management, :larvae1; kw=(; n=40)),
+ both_ways(:eab_management, :larvae1; kw=(; n=40, treatment=:girdling)),
+ both_ways(:eab_management, :larvae1; kw=(; n=40, stress_bias=true)),
+ both_ways(:emerald_ash_borer, :adults; kw=(; n=41)),
+ both_ways(:eab_management, :phloem0; kw=(; n=40)),
+ both_ways(:eab_management, :phloem0; kw=(; n=40, stress_bias=true))]
 ```
 
-    (model = :emerald_ash_borer, layer = :larvae1, setting = "", is_map = false)
+    7-element Vector{@NamedTuple{model::Symbol, layer::Symbol, setting::String, lifted_callback::Bool, whole_step::Bool}}:
+     (model = :emerald_ash_borer, layer = :larvae1, setting = "", lifted_callback = 0, whole_step = 1)
+     (model = :eab_management, layer = :larvae1, setting = "", lifted_callback = 0, whole_step = 1)
+     (model = :eab_management, layer = :larvae1, setting = "treatment=girdling", lifted_callback = 0, whole_step = 1)
+     (model = :eab_management, layer = :larvae1, setting = "stress_bias=true", lifted_callback = 0, whole_step = 1)
+     (model = :emerald_ash_borer, layer = :adults, setting = "", lifted_callback = 0, whole_step = 0)
+     (model = :eab_management, layer = :phloem0, setting = "", lifted_callback = 1, whole_step = 1)
+     (model = :eab_management, layer = :phloem0, setting = "stress_bias=true", lifted_callback = 0, whole_step = 0)
 
-The quotient maps down between the rule and the callback, so the larvae
-are gone before the callback can see them. A map here would have to
-treat the rule and the callback as one step, which `forget_layers` does
-not do.
+Forgetting `larvae1` is a map in both models, with or without a
+treatment. It is not vacuous, since the layer holds millions of larvae
+in the saved states, and the smaller model does without them. Its rule
+commutes too, so the callback alone is what the lifted construction
+trips over:
 
-Other limits:
+``` julia
+borer = problem(:emerald_ash_borer; n=41)
+no_larvae1 = forget_layers(build(:emerald_ash_borer), :larvae1)
+borer_run = solve(borer).u
+borer_layers = keys(borer_run[1])
+borer_cells = unique(reduce(vcat,
+                            [vec(map((xs...) -> NamedTuple{borer_layers}(xs), values(u)...))
+                             for u in borer_run]))
+(peak_larvae1=maximum(u -> sum(u.larvae1), borer_run),
+ layers_left=keys(solve(pushforward(no_larvae1, borer; callback=:lift_step)).u[end]),
+ rules_commute=is_model_map(no_larvae1; cells=borer_cells, p=borer.p, samples=5000))
+```
 
+    (peak_larvae1 = 4.287348754789183e6, layers_left = (:phloem, :adults, :larvae2_odd, :larvae2_even, :border, :phloem0), rules_commute = true)
+
+The whole step does not hide a dependence: `adults` still fails, and so
+does `phloem0` under the stress bias, where the callback really reads it
+between steps. Where a lifted callback works the two constructions are
+the same, so its answers carry over.
+
+The Lean library proves these relations. The quotient runs every run of
+the original when the whole step does not depend on what is forgotten,
+and it is then the only whole step that does
+(`Lumping.runWith_wholeStep_quotient`, `Lumping.wholeStep_unique`). When
+the rule and callback pass separately, lifting the whole step gives the
+same thing as the lifted callback (`Lumping.wholeStep_descends`,
+`Lumping.liftCallback_wholeStep`). And the whole step is strictly more
+general: a small model has a rule and a whole step that can forget a
+layer while its callback cannot, which is the shape of the larvae here
+(`wholeStep_strictly_more`).
+
+Trying every layer of the zoo’s layered models one at a time, 101 layers
+in 20 models at their usual settings with some of the long runs
+shortened, these two `larvae1` layers are the only answers that change.
+Every layer that passed with a lifted callback passed with the whole
+step too.
+
+## What a quotient cannot express
+
+Some limits remain:
+
+- The problem that `callback=:lift_step` builds runs the original’s
+  whole step and has no local rule of its own, so it can be solved but
+  not checked cell by cell.
 - A layer that never leaves its default passes vacuously. `rogued` and
   `tested` in the grapevine model are like that at its default settings,
   which says nothing about the runs that use them.
@@ -317,6 +388,8 @@ Other limits:
 | the same, with predation | run, block rule | not a map |
 | grapevine without `age` | run, lifted callback | not a map, from month 61 |
 | ash borer without `larvae1` | run, lifted callback | not a map: read between rule and callback |
+| the same | rules; run, whole step | rules commute, and a map |
+| ash borer without `adults` | run, whole step | not a map |
 
 ## References
 
