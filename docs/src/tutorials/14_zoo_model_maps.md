@@ -325,12 +325,12 @@ borer_layers = keys(borer_run[1])
 borer_cells = unique(reduce(vcat,
                             [vec(map((xs...) -> NamedTuple{borer_layers}(xs), values(u)...))
                              for u in borer_run]))
-(peak_larvae1=maximum(u -> sum(u.larvae1), borer_run),
+(peak_larvae1=round(maximum(u -> sum(u.larvae1), borer_run); sigdigits=6),
  layers_left=keys(solve(pushforward(no_larvae1, borer; callback=:lift_step)).u[end]),
  rules_commute=is_model_map(no_larvae1; cells=borer_cells, p=borer.p, samples=5000))
 ```
 
-    (peak_larvae1 = 4.287348754789183e6, layers_left = (:phloem, :adults, :larvae2_odd, :larvae2_even, :border, :phloem0), rules_commute = true)
+    (peak_larvae1 = 4.28735e6, layers_left = (:phloem, :adults, :larvae2_odd, :larvae2_even, :border, :phloem0), rules_commute = true)
 
 The whole step does not hide a dependence: `adults` still fails, and so
 does `phloem0` under the stress bias, where the callback really reads it
