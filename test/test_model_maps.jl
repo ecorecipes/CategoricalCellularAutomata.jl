@@ -362,12 +362,68 @@
                                                c -> Float64(c.infected))))
     @test is_model_map(forget_layers(fielded, :record), extra)
 
+    # block rules: particles of two colours, each block turning at random, against the same
+    # particles written by hand without colours
+    turn(b) = (b[3], b[1], b[4], b[2])  # a quarter turn of (top left, bottom left, ...)
+    colours = CAModel(BlockRule((b, ctx) -> uniform(ctx, 1) < 0.5 ? turn(b) : b);
+                      name=:Colours,
+                      states=[StateVariable(:c, 0; domain=(0, 1, 2))])
+    bare = CAModel(BlockRule((b, ctx) -> uniform(ctx, 1) < 0.5 ? turn(b) : b); name=:Bare,
+                   states=[StateVariable(:c, 0; domain=(0, 1))])
+    colourless = ModelMap(colours, bare, c -> Int(c != 0))
+    @test is_model_map(colourless)
+    cprob = CAProblem(colours, (; c=rand(rng, 0:2, 10, 8)), 30; space=Torus(10, 8), seed=4)
+    @test is_model_map(colourless, cprob; alg=Margolus())
+    @test solve(cprob, Margolus()).u[end] != cprob.u0
+    # the run needs the scheme, and the core says so
+    @test_throws ArgumentError is_model_map(colourless, cprob)
+    # the quotient is a block rule, needs no rule of its own, and equals the one written by hand
+    bq = quotient(colours, c -> Int(c != 0), b -> b; name=:BlockQuotient,
+                  states=[StateVariable(:c, 0; domain=(0, 1))])
+    @test codom(bq).rule isa BlockRule
+    @test sprint(show, codom(bq).rule) == "BlockRule(quotient)"
+    @test is_model_map(bq) && is_model_map(bq, cprob; alg=Margolus())
+    @test solve(pushforward(bq, cprob), Margolus()).u ==
+          solve(pushforward(colourless, cprob), Margolus()).u
+    # colour 2 sticks, so forgetting colours is no longer a map: both checks see it
+    sticky = CAModel(BlockRule((b, ctx) -> 2 in b ? b :
+                                           (uniform(ctx, 1) < 0.5 ? turn(b) : b));
+                     name=:Sticky, states=[StateVariable(:c, 0; domain=(0, 1, 2))])
+    sq = quotient(sticky, c -> Int(c != 0), b -> b; name=:StickyQuotient,
+                  states=[StateVariable(:c, 0; domain=(0, 1))])
+    @test !is_model_map(sq)
+    @test !is_model_map(sq,
+                        CAProblem(sticky, (; c=rand(rng, 0:2, 10, 8)), 30;
+                                  space=Torus(10, 8), seed=4); alg=Margolus())
+    # layers: a record that does not feed back, with sampled blocks and a lifted callback
+    layered = CAModel(BlockRule((b, ctx) -> uniform(ctx, 1) < 0.5 ? turn(b) : b);
+                      name=:Layered,
+                      states=[StateVariable(:x, 0; domain=(0, 1)),
+                              StateVariable(:mark, 0; domain=0:2)])
+    fl = forget_layers(layered, :mark)
+    @test codom(fl).rule isa BlockRule && is_model_map(fl)
+    @test is_model_map(fl; samples=200, contexts=4)
+    lprob = CAProblem(layered, (x=rand(rng, 0:1, 8, 8), mark=rand(rng, 0:2, 8, 8)), 12;
+                      space=Torus(8, 8), seed=6)
+    @test is_model_map(fl, lprob; alg=Margolus())
+    empty = () -> DiscreteCallback((u, t, integ) -> t == 5,
+                                   integ -> (integ.u.x[1:2, :].=0; nothing);
+                                   save_positions=(false, false))
+    lcb = remake(lprob; kwargs=(; callback=empty()))
+    @test is_model_map(fl, lcb; alg=Margolus(), callback=:lift)
+    @test solve(lcb, Margolus()).u[end] != solve(lprob, Margolus()).u[end]
+    # mixing a block rule with a rule stepped cell by cell has no local comparison
+    @test_throws ArgumentError is_model_map(ModelMap(colours, life, c -> Int(c != 0)))
+    # an event rule gives rates, not a next state
+    events = CAModel(EventRule((c, nb, ctx) -> (1.0 => c,), VonNeumann(1)); name=:Events,
+                     states=[StateVariable(:x, 0)])
+    @test_throws ArgumentError quotient(events, identity, identity;
+                                        states=[StateVariable(:x, 0)])
+    @test_throws ArgumentError is_model_map(ModelMap(events, events, identity))
+
     # errors
     @test_throws ArgumentError forget_layers(traced, :nothing)
     @test_throws ArgumentError forget_layers(traced, :state, :lineage)
-    blocks = CAModel(BlockRule((b, ctx) -> b); name=:blocks, states=(; x=0))
-    @test_throws ArgumentError quotient(blocks, identity, identity; states=(; x=0))
-    @test_throws ArgumentError is_model_map(ModelMap(blocks, blocks, identity))
     @test_throws DomainMismatchError pushforward(untrace,
                                                  CAProblem(sir, (;), 3;
                                                            space=Torus(4, 4)))

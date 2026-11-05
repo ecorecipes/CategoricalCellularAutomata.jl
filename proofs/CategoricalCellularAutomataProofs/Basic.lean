@@ -36,6 +36,7 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `Lumping.descends_iff_exists_rule`, `Lumping.rule_unique` | `is_model_map` on a quotient | `h` commutes with some rule exactly when the dynamics do not depend on what it forgets; that rule is the quotient's, whichever section is used |
 | `Lumping.lift_comp`, `Lumping.lift_unique` | `quotient` | the universal property: maps of models that do not distinguish what `h` forgets factor through the quotient, uniquely |
 | `Lumping.liftCallback`, `Lumping.runWith_quotient` | `pushforward(f, prob; callback=:lift)` | a callback lifts when it does not depend on what is forgotten, and the quotient with it runs every run of the original, mapped down |
+| `BlockLumping`, `BlockLumping.blockRun_quotient` | `quotient` of a model with a `BlockRule` | block rules: the same construction on blocks of states, and the quotient runs every run of the original, mapped down |
 | `Lumping.erased_run` | `is_model_map(f, prob)` | what a run can show: without feedback, erasing what is forgotten changes nothing kept, so a difference disproves the map |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each

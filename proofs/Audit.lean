@@ -74,3 +74,8 @@ open CategoricalCellularAutomataProofs
 #print axioms Lumping.callback_unique
 #print axioms Lumping.runWith_quotient
 #print axioms Lumping.erased_run
+#print axioms BlockMap.blockRun_map
+#print axioms BlockLumping.map
+#print axioms BlockLumping.rule_unique
+#print axioms BlockLumping.descends_iff_exists_rule
+#print axioms BlockLumping.blockRun_quotient

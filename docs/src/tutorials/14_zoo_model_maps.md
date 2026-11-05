@@ -9,6 +9,8 @@ Simon Frost
 - [Percolation inside a viral front](#percolation-inside-a-viral-front)
 - [Quotients of models with
   callbacks](#quotients-of-models-with-callbacks)
+- [A block rule: enemies that cannot catch
+  anything](#a-block-rule-enemies-that-cannot-catch-anything)
 - [A short run can hide a
   dependence](#a-short-run-can-hide-a-dependence)
 - [What a quotient cannot express](#what-a-quotient-cannot-express)
@@ -39,7 +41,7 @@ loads it.
 ENV["GKSwstype"] = "100"
 using CategoricalCellularAutomata
 using EcologicalCellularAutomata
-using CellularAutomataCore: CellularAutomataCore, CAProblem, solve, remake, Torus
+using CellularAutomataCore: CellularAutomataCore, CAProblem, solve, remake, Torus, Margolus
 using Catlab: codom
 using Plots
 ```
@@ -219,6 +221,29 @@ layers show that the answer belongs to the problem as well as the model:
 `large` matters once there is a treatment, and `phloem0` only under the
 stress bias.
 
+## A block rule: enemies that cannot catch anything
+
+The three-layer Bt crop model is a block rule ([Yang et al.
+2009](#ref-Yang2009)), solved with the Margolus scheme: pests and their
+enemies move in 2 × 2 blocks over a plant layer. Its quotient is a block
+rule too, lifting a block and mapping the new block down. None of its
+nine layers can be forgotten alone, but all four enemy layers can be
+forgotten together when enemies cannot catch anything. Then they never
+touch the pests, though they are there at the start and only later
+starve:
+
+``` julia
+bt = build(:bt_crop_three_layer)
+no_enemies = forget_layers(bt, :enemy, :enemy_age, :enemy_hunger, :enemy_genome)
+map(((; P_DB=0.6, P_DC=0.6), (; P_DB=0.0, P_DC=0.0))) do predation
+    prob = problem(:bt_crop_three_layer; pmap=predation)
+    (; predation, enemies_at_start=count(prob.u0.enemy),
+     is_map=is_model_map(no_enemies, prob; alg=Margolus()))
+end
+```
+
+    ((predation = (P_DB = 0.6, P_DC = 0.6), enemies_at_start = 4981, is_map = false), (predation = (P_DB = 0.0, P_DC = 0.0), enemies_at_start = 4981, is_map = true))
+
 ## A short run can hide a dependence
 
 A `false` disproves a map, but a `true` holds only for the problem and
@@ -268,8 +293,8 @@ Other limits:
 - A layer that never leaves its default passes vacuously. `rogued` and
   `tested` in the grapevine model are like that at its default settings,
   which says nothing about the runs that use them.
-- Block rules, such as the three-layer Bt crop model’s, are not stepped
-  cell by cell, and `quotient` refuses them.
+- Event rules, which give rates rather than a next state, are refused by
+  `quotient`.
 - A callback may refuse to run on what is left. Forgetting `farmers` in
   the potato moth model raises the model’s own error, and that is an
   answer too.
@@ -288,6 +313,8 @@ Other limits:
 | viral front `R = 1` → `R`, no mutation, `π ↦ π^(1/R)` | rules at 2000 contexts; run | a map |
 | the same, with mutation | rules | not a map |
 | mealybug without `loss`, potato moth without `source`, orchard without `age` | run, lifted callback | a map |
+| Bt crop without its enemy layers, no predation | run, block rule | a map |
+| the same, with predation | run, block rule | not a map |
 | grapevine without `age` | run, lifted callback | not a map, from month 61 |
 | ash borer without `larvae1` | run, lifted callback | not a map: read between rule and callback |
 
@@ -347,6 +374,19 @@ G. McCullough. 2011b. “Simulating the Effectiveness of Three Potential
 Management Options to Slow the Spread of Emerald Ash Borer (*Agrilus
 Planipennis*) Populations in Localized Outlier Sites.” *Canadian Journal
 of Forest Research* 41 (2): 254–64. <https://doi.org/10.1139/X10-201>.
+
+```@raw html
+</div>
+```
+
+```@raw html
+<div id="ref-Yang2009" class="csl-entry">
+```
+
+Yang, Jun, Zhi-Rui Wang, De-Li Yang, Qing Yang, Jun Yan, and Ming-Feng
+He. 2009. “Ecological Risk Assessment of Genetically Modified Crops
+Based on Cellular Automata Modeling.” *Biotechnology Advances* 27 (6):
+1132–36. <https://doi.org/10.1016/j.biotechadv.2009.05.024>.
 
 ```@raw html
 </div>

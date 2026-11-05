@@ -30,11 +30,12 @@ jobs:
         with:
           tinytex: true
       - name: Install PDF prerequisites
-        # librsvg2-bin provides rsvg-convert, which quarto uses to embed SVG
-        # figures in the PDF. stix2-otf supplies the STIX Two
+        # graphviz provides dot, which Catlab uses to draw wiring diagrams
+        # (vignettes 04 and 10). librsvg2-bin provides rsvg-convert, which quarto
+        # uses to embed SVG figures in the PDF. stix2-otf supplies the STIX Two
         # text/math fonts; the remaining packages are used by the quarto template.
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin
+          sudo apt-get update -qq && sudo apt-get install -y -qq librsvg2-bin graphviz
           # TinyTeX (installed by quarto-actions/setup) is not on PATH by default.
           tl=$(dirname "$(ls -d "$HOME"/.TinyTeX/bin/*/tlmgr | head -1)")
           echo "$tl" >> "$GITHUB_PATH"

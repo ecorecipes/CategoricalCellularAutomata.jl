@@ -200,7 +200,8 @@ rule it checks the random numbers on those contexts.
 
 The number of neighbours comes from the domain's neighbourhood on a square
 lattice of `dims` dimensions, or on `space` (a `GraphSpace` for a model that
-reads a graph: every degree that occurs is checked). The number of local
+reads a graph: every degree that occurs is checked). For a block rule the local
+configurations are the blocks, and the new blocks are compared. The number of local
 configurations checked must stay below `PATTERN_LIMIT`, or `ArgumentError` is
 raised; with `samples` set, that many configurations are drawn at random from
 `cells` for each context instead, which can find a failure but proves nothing.
@@ -210,7 +211,8 @@ checks one problem by running it: it solves `prob` and
 [`pushforward(f, prob; callback)`](@ref pushforward(::ModelMap, ::Any)) with the
 scheme `alg` (and `kwargs`, such as `saveat`), and compares every saved state,
 exactly. It is the check for models that read covariates or kernel fields,
-which the first form refuses, and for callbacks and block rules. `callback` is
+which the first form refuses, and for callbacks; a block rule needs
+`alg=Margolus()`. `callback` is
 as for `pushforward`, so `callback=:lift` checks a quotient with the original's
 callback. A `false` disproves the map; a `true` holds for that problem and span
 only, since a run may not reach what would tell them apart.
@@ -221,11 +223,15 @@ function is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts::Integer=8
     for m in (f.dom, f.codom)
         isempty(m.covariates) && isempty(m.fields) ||
             throw(ArgumentError("model $(m.name) reads covariates or kernel fields; check it by running a problem: is_model_map(f, prob)"))
-        m.rule isa Union{CAC.EventRule,CAC.BlockRule} &&
-            throw(ArgumentError("model $(m.name) is not stepped cell by cell; check it by running a problem: is_model_map(f, prob)"))
+        m.rule isa CAC.EventRule &&
+            throw(ArgumentError("model $(m.name) has an event rule; check it by running a problem: is_model_map(f, prob)"))
     end
+    blocks = f.dom.rule isa CAC.BlockRule
+    blocks == (f.codom.rule isa CAC.BlockRule) ||
+        throw(ArgumentError("$f maps between a block rule and a rule stepped cell by cell, which no local configuration can compare"))
     vals = cells === nothing ? _domain_values(f.dom) : collect(cells)
-    ks = _neighbour_counts(f.dom, space, dims)
+    # a block rule's local configuration is its block: read as a cell and three "neighbours"
+    ks = blocks ? [3] : _neighbour_counts(f.dom, space, dims)
     if samples === nothing
         total = sum(k -> big(length(vals))^(k + 1), ks) * contexts
         total <= PATTERN_LIMIT ||
@@ -242,9 +248,14 @@ function is_model_map(f::ModelMap; cells=nothing, p=nothing, contexts::Integer=8
                    Iterators.product(ntuple(_ -> vals, k + 1)...) :
                    (_sampled_pattern(vals, k, i, s) for s in 1:samples)
         for pattern in patterns
-            cell, nbrs = first(pattern), Base.tail(pattern)
-            next = f.h(CAC.local_rule(f.dom.rule, cell, nbrs, cdom))
-            other = CAC.local_rule(f.codom.rule, f.h(cell), map(f.h, nbrs), ccod)
+            if blocks
+                next = map(f.h, f.dom.rule.f(pattern, cdom))
+                other = f.codom.rule.f(map(f.h, pattern), ccod)
+            else
+                cell, nbrs = first(pattern), Base.tail(pattern)
+                next = f.h(CAC.local_rule(f.dom.rule, cell, nbrs, cdom))
+                other = CAC.local_rule(f.codom.rule, f.h(cell), map(f.h, nbrs), ccod)
+            end
             isequal(next, other) || return false
         end
     end
@@ -353,6 +364,20 @@ CAC.neighbourhood(r::_QuotientRule) = CAC.neighbourhood(r.rule)
 CAC.fields(r::_QuotientRule) = map(f -> _lift_field(f, r.section), CAC.fields(r.rule))
 Base.show(io::IO, r::_QuotientRule) = print(io, "quotient of ", r.rule)
 
+# The same for a block rule: lift the block, apply the rule, and map the new block down.
+struct _QuotientBlock{F,H,S}
+    f::F
+    h::H
+    section::S
+end
+(b::_QuotientBlock)(block, ctx) = map(b.h, b.f(map(b.section, block), ctx))
+Base.nameof(::_QuotientBlock) = :quotient
+
+function _quotient_rule(r::CAC.BlockRule, h, section)
+    return CAC.BlockRule(_QuotientBlock(r.f, h, section))
+end
+_quotient_rule(r::CAC.AbstractRule, h, section) = _QuotientRule(r, h, section)
+
 """
     quotient(model, h, section; states, name, description="") -> ModelMap
 
@@ -369,15 +394,16 @@ of that, and fails when what `h` forgets feeds back. When it is one, this is the
 only rule that `h` commutes with, whichever section is used, and every map of
 models that does not distinguish what `h` forgets factors through it. A problem
 with a callback moves with `callback=:lift`
-([`pushforward`](@ref pushforward(::ModelMap, ::Any))). Event rules and block
-rules, which are not stepped cell by cell, raise `ArgumentError`.
+([`pushforward`](@ref pushforward(::ModelMap, ::Any))). A block rule's quotient is
+a block rule, lifting the block and mapping the new block down. Event rules, whose
+rule gives rates rather than a next state, raise `ArgumentError`.
 """
 function quotient(model::CAC.CAModel, h, section; states,
                   name::Symbol=Symbol(model.name, :_quotient),
                   description::AbstractString="quotient of $(model.name)")
-    model.rule isa Union{CAC.EventRule,CAC.BlockRule} &&
-        throw(ArgumentError("cannot take a quotient of $(model.name): only rules stepped cell by cell"))
-    rule = _QuotientRule(model.rule, h, section)
+    model.rule isa CAC.EventRule &&
+        throw(ArgumentError("cannot take a quotient of $(model.name): an event rule gives rates, not a next state"))
+    rule = _quotient_rule(model.rule, h, section)
     fields = map(f -> _lift_field(f, section), model.fields)
     q = CAC.CAModel(rule; name, states, parameters=model.parameters, fields,
                     covariates=model.covariates, description)

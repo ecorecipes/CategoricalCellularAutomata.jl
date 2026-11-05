@@ -130,7 +130,10 @@ spaces</a></li>
 between models</a></li>
 <li><a href="#quotients-of-models-with-and-without-callbacks"
 id="toc-quotients-of-models-with-and-without-callbacks">Quotients of
-models, with and without callbacks</a></li>
+models, with and without callbacks</a>
+<ul>
+<li><a href="#block-rules" id="toc-block-rules">Block rules</a></li>
+</ul></li>
 </ul>
 </nav>
 <!-- CategoricalCellularAutomataProofs/Basic.lean -->
@@ -323,6 +326,13 @@ section is used</td>
 <td><code>pushforward(f, prob; callback=:lift)</code></td>
 <td>a callback lifts when it does not depend on what is forgotten, and
 the quotient with it runs every run of the original, mapped down</td>
+</tr>
+<tr>
+<td><code>BlockLumping</code>,
+<code>BlockLumping.blockRun_quotient</code></td>
+<td><code>quotient</code> of a model with a <code>BlockRule</code></td>
+<td>block rules: the same construction on blocks of states, and the
+quotient runs every run of the original, mapped down</td>
 </tr>
 <tr>
 <td><code>Lumping.erased_run</code></td>
@@ -1246,11 +1256,15 @@ quotient, with its lifted callback, runs every run of the original
 mapped by <code>h</code> (<code>Lumping.runWith_quotient</code>). The
 package’s <code>pushforward(f, prob; callback=:lift)</code> is this
 construction.</p>
-<p>The last theorem says what erasing a layer after every step can show.
-If <code>h</code> forgets without feedback, the erased run agrees with
-the original on everything kept (<code>Lumping.erased_run</code>). So a
-difference between the two disproves the map; agreement on one problem
-does not prove it.</p>
+<p>Block rules, whose cells are written a block at a time, get the same
+construction one level up (<code>BlockLumping</code>). Together with
+<code>Lumping</code> this covers every rule <code>quotient</code>
+accepts.</p>
+<p>The last theorem of <code>Lumping</code> says what erasing a layer
+after every step can show. If <code>h</code> forgets without feedback,
+the erased run agrees with the original on everything kept
+(<code>Lumping.erased_run</code>). So a difference between the two
+disproves the map; agreement on one problem does not prove it.</p>
 <div class="sourceCode" id="cb20"><pre
 class="sourceCode lean"><code class="sourceCode lean"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1431,8 +1445,109 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb20-1"><a href=
 <span id="cb20-177"><a href="#cb20-177" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [q.h_comp_s_comp]</span>
 <span id="cb20-178"><a href="#cb20-178" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> hκ n _ _ (q.step_congr hd n ih)</span>
 <span id="cb20-179"><a href="#cb20-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-180"><a href="#cb20-180" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Lumping</span>
-<span id="cb20-181"><a href="#cb20-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-182"><a href="#cb20-182" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<span id="cb20-180"><a href="#cb20-180" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Lumping</span></code></pre></div>
+<h2 id="block-rules">Block rules</h2>
+<p>A block rule does not fit <code>μ t c : List A → A</code>: a Margolus
+step cuts the cells into blocks, and each block’s cells are written
+together. Here the cells are cut by an equivalence
+<code>X ≃ K × ι</code> (block <code>k</code>, position <code>i</code>
+within it), which may change from step to step, as the Margolus offsets
+do. The same construction applies one level up, with a block of states
+in place of a list.</p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A block model: cell states and, at each time and for each block, a map of block states. -/</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> BlockModel (K ι : <span class="kw">Type</span> u) <span class="kw">where</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the cell states -/</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  A : <span class="kw">Type</span> u</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the new states of block `k` at time `t` from its states -/</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  f : ℕ → K → (ι → A) → ι → A</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {K ι : <span class="kw">Type</span> u}</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="do">/-- One step of a block rule: each cell takes its place in the new states of its block. -/</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> blockStep {A : <span class="kw">Type</span> u} (e : X ≃ K × ι) (f : K → (ι → A) → ι → A) (x : X → A) : X → A :=</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  <span class="kw">fun</span> c =&gt; f (e c).<span class="dv">1</span> (<span class="kw">fun</span> j =&gt; x (e.symm ((e c).<span class="dv">1</span>, j))) (e c).<span class="dv">2</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The run of a block rule, with the partition of step `t` given by `e t`. -/</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> blockRun {A : <span class="kw">Type</span> u} (e : ℕ → X ≃ K × ι) (f : ℕ → K → (ι → A) → ι → A) (x : X → A) :</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    ℕ → X → A</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  | <span class="dv">0</span> =&gt; x</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  | n + <span class="dv">1</span> =&gt; blockStep (e n) (f n) (blockRun e f x n)</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of block models: a map of cell states commuting with the block rules. -/</span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a><span class="at">@[ext]</span></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> BlockMap (M N : BlockModel K ι) <span class="kw">where</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the map of cell states, applied cell by cell -/</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>  h : M.A → N.A</span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the new states of a block, mapped, are the new states from the mapped block -/</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a>  comm : ∀ t k b, h ∘ M.f t k b = N.f t k (h ∘ b)</span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Maps of block models send runs to runs.** -/</span></span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> BlockMap.blockRun_map {M N : BlockModel K ι} (F : BlockMap M N)</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>    (e : ℕ → X ≃ K × ι) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>    blockRun e N.f (F.h ∘ x) n = F.h ∘ blockRun e M.f x n := <span class="kw">by</span></span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">rfl</span></span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt;</span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> c</span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> only [blockRun, ih, blockStep, Function.comp_apply]</span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> (congrFun (F.comm n (e n c).<span class="dv">1</span> _) (e n c).<span class="dv">2</span>).symm</span>
+<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A way to forget something about cell states of a block model, and to fill it back in. -/</span></span>
+<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> BlockLumping (M : BlockModel K ι) (B : <span class="kw">Type</span> u) <span class="kw">where</span></span>
+<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the map of cell states -/</span></span>
+<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a>  h : M.A → B</span>
+<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the lift of a cell state -/</span></span>
+<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a>  s : B → M.A</span>
+<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- lifting and mapping down changes nothing -/</span></span>
+<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a>  h_s : ∀ b, h (s b) = b</span>
+<span id="cb21-47"><a href="#cb21-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-48"><a href="#cb21-48" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> BlockLumping</span>
+<span id="cb21-49"><a href="#cb21-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-50"><a href="#cb21-50" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {M : BlockModel K ι} {B : <span class="kw">Type</span> u} (q : BlockLumping M B)</span>
+<span id="cb21-51"><a href="#cb21-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-52"><a href="#cb21-52" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> h_comp_s_comp (y : ι → B) : q.h ∘ (q.s ∘ y) = y := <span class="kw">by</span></span>
+<span id="cb21-53"><a href="#cb21-53" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> i</span>
+<span id="cb21-54"><a href="#cb21-54" aria-hidden="true" tabindex="-1"></a>  <span class="cf">exact</span> q.h_s (y i)</span>
+<span id="cb21-55"><a href="#cb21-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-56"><a href="#cb21-56" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The quotient block model: lift the block, apply `M`&#39;s rule, map the result down. -/</span></span>
+<span id="cb21-57"><a href="#cb21-57" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> model : BlockModel K ι <span class="kw">where</span></span>
+<span id="cb21-58"><a href="#cb21-58" aria-hidden="true" tabindex="-1"></a>  A := B</span>
+<span id="cb21-59"><a href="#cb21-59" aria-hidden="true" tabindex="-1"></a>  f t k b := q.h ∘ M.f t k (q.s ∘ b)</span>
+<span id="cb21-60"><a href="#cb21-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-61"><a href="#cb21-61" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The new states of a block, mapped by `h`, do not depend on what `h` forgets. -/</span></span>
+<span id="cb21-62"><a href="#cb21-62" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> Descends : <span class="kw">Prop</span> :=</span>
+<span id="cb21-63"><a href="#cb21-63" aria-hidden="true" tabindex="-1"></a>  ∀ t k (b b&#39; : ι → M.A), q.h ∘ b = q.h ∘ b&#39; → q.h ∘ M.f t k b = q.h ∘ M.f t k b&#39;</span>
+<span id="cb21-64"><a href="#cb21-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-65"><a href="#cb21-65" aria-hidden="true" tabindex="-1"></a><span class="do">/-- When the dynamics do not depend on what is forgotten, `h` is a map onto the quotient. -/</span></span>
+<span id="cb21-66"><a href="#cb21-66" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> map (hd : q.Descends) : BlockMap M q.model <span class="kw">where</span></span>
+<span id="cb21-67"><a href="#cb21-67" aria-hidden="true" tabindex="-1"></a>  h := q.h</span>
+<span id="cb21-68"><a href="#cb21-68" aria-hidden="true" tabindex="-1"></a>  comm t k b := hd t k b (q.s ∘ (q.h ∘ b)) (q.h_comp_s_comp (q.h ∘ b)).symm</span>
+<span id="cb21-69"><a href="#cb21-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-70"><a href="#cb21-70" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Any block rule that `h` commutes with is the quotient&#39;s**, whichever section was used. -/</span></span>
+<span id="cb21-71"><a href="#cb21-71" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> rule_unique {g : ℕ → K → (ι → B) → ι → B}</span>
+<span id="cb21-72"><a href="#cb21-72" aria-hidden="true" tabindex="-1"></a>    (comm : ∀ t k b, q.h ∘ M.f t k b = g t k (q.h ∘ b)) : g = q.model.f := <span class="kw">by</span></span>
+<span id="cb21-73"><a href="#cb21-73" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> t k b</span>
+<span id="cb21-74"><a href="#cb21-74" aria-hidden="true" tabindex="-1"></a>  <span class="kw">show</span> g t k b = q.h ∘ M.f t k (q.s ∘ b)</span>
+<span id="cb21-75"><a href="#cb21-75" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [comm, q.h_comp_s_comp]</span>
+<span id="cb21-76"><a href="#cb21-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-77"><a href="#cb21-77" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **`h` commutes with some block rule exactly when the dynamics do not depend on what it</span></span>
+<span id="cb21-78"><a href="#cb21-78" aria-hidden="true" tabindex="-1"></a><span class="do">forgets.** -/</span></span>
+<span id="cb21-79"><a href="#cb21-79" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> descends_iff_exists_rule :</span>
+<span id="cb21-80"><a href="#cb21-80" aria-hidden="true" tabindex="-1"></a>    q.Descends ↔ ∃ g : ℕ → K → (ι → B) → ι → B, ∀ t k b, q.h ∘ M.f t k b = g t k (q.h ∘ b) := <span class="kw">by</span></span>
+<span id="cb21-81"><a href="#cb21-81" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb21-82"><a href="#cb21-82" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> hd</span>
+<span id="cb21-83"><a href="#cb21-83" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> ⟨q.model.f, (q.map hd).comm⟩</span>
+<span id="cb21-84"><a href="#cb21-84" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">rintro</span> ⟨g, comm⟩ t k b b&#39; e</span>
+<span id="cb21-85"><a href="#cb21-85" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [comm, comm, e]</span>
+<span id="cb21-86"><a href="#cb21-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-87"><a href="#cb21-87" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The quotient runs every run of the original, mapped by `h`.** -/</span></span>
+<span id="cb21-88"><a href="#cb21-88" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> blockRun_quotient (hd : q.Descends) (e : ℕ → X ≃ K × ι) (x : X → M.A) (n : ℕ) :</span>
+<span id="cb21-89"><a href="#cb21-89" aria-hidden="true" tabindex="-1"></a>    blockRun e q.model.f (q.h ∘ x) n = q.h ∘ blockRun e M.f x n :=</span>
+<span id="cb21-90"><a href="#cb21-90" aria-hidden="true" tabindex="-1"></a>  (q.map hd).blockRun_map e x n</span>
+<span id="cb21-91"><a href="#cb21-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-92"><a href="#cb21-92" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> BlockLumping</span>
+<span id="cb21-93"><a href="#cb21-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-94"><a href="#cb21-94" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 </body>
 </html>

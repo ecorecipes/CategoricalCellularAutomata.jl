@@ -39,6 +39,7 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `Lumping.descends_iff_exists_rule`, `Lumping.rule_unique` | `is_model_map` on a quotient | `h` commutes with some rule exactly when the dynamics do not depend on what it forgets; that rule is the quotient's, whichever section is used |
 | `Lumping.lift_comp`, `Lumping.lift_unique` | `quotient` | the universal property: maps of models that do not distinguish what `h` forgets factor through the quotient, uniquely |
 | `Lumping.liftCallback`, `Lumping.runWith_quotient` | `pushforward(f, prob; callback=:lift)` | a callback lifts when it does not depend on what is forgotten, and the quotient with it runs every run of the original, mapped down |
+| `BlockLumping`, `BlockLumping.blockRun_quotient` | `quotient` of a model with a `BlockRule` | block rules: the same construction on blocks of states, and the quotient runs every run of the original, mapped down |
 | `Lumping.erased_run` | `is_model_map(f, prob)` | what a run can show: without feedback, erasing what is forgotten changes nothing kept, so a difference disproves the map |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
@@ -978,7 +979,10 @@ lifts in the same way, `y ↦ h ∘ κ (s ∘ y)`, under the same kind of condit
 every run of the original mapped by `h` (`Lumping.runWith_quotient`). The package's
 `pushforward(f, prob; callback=:lift)` is this construction.
 
-The last theorem says what erasing a layer after every step can show. If `h` forgets without
+Block rules, whose cells are written a block at a time, get the same construction one level up
+(`BlockLumping`). Together with `Lumping` this covers every rule `quotient` accepts.
+
+The last theorem of `Lumping` says what erasing a layer after every step can show. If `h` forgets without
 feedback, the erased run agrees with the original on everything kept (`Lumping.erased_run`). So a
 difference between the two disproves the map; agreement on one problem does not prove it.
 
@@ -1163,6 +1167,108 @@ theorem erased_run (hd : q.Descends) {κ : ℕ → (X → M.A) → X → M.A}
     exact hκ n _ _ (q.step_congr hd n ih)
 
 end Lumping
+```
+
+## Block rules
+
+A block rule does not fit `μ t c : List A → A`: a Margolus step cuts the cells into blocks, and
+each block's cells are written together. Here the cells are cut by an equivalence `X ≃ K × ι`
+(block `k`, position `i` within it), which may change from step to step, as the Margolus offsets
+do. The same construction applies one level up, with a block of states in place of a list.
+
+```lean
+/-- A block model: cell states and, at each time and for each block, a map of block states. -/
+structure BlockModel (K ι : Type u) where
+  /-- the cell states -/
+  A : Type u
+  /-- the new states of block `k` at time `t` from its states -/
+  f : ℕ → K → (ι → A) → ι → A
+
+variable {K ι : Type u}
+
+/-- One step of a block rule: each cell takes its place in the new states of its block. -/
+def blockStep {A : Type u} (e : X ≃ K × ι) (f : K → (ι → A) → ι → A) (x : X → A) : X → A :=
+  fun c => f (e c).1 (fun j => x (e.symm ((e c).1, j))) (e c).2
+
+/-- The run of a block rule, with the partition of step `t` given by `e t`. -/
+def blockRun {A : Type u} (e : ℕ → X ≃ K × ι) (f : ℕ → K → (ι → A) → ι → A) (x : X → A) :
+    ℕ → X → A
+  | 0 => x
+  | n + 1 => blockStep (e n) (f n) (blockRun e f x n)
+
+/-- A map of block models: a map of cell states commuting with the block rules. -/
+@[ext]
+structure BlockMap (M N : BlockModel K ι) where
+  /-- the map of cell states, applied cell by cell -/
+  h : M.A → N.A
+  /-- the new states of a block, mapped, are the new states from the mapped block -/
+  comm : ∀ t k b, h ∘ M.f t k b = N.f t k (h ∘ b)
+
+/-- **Maps of block models send runs to runs.** -/
+theorem BlockMap.blockRun_map {M N : BlockModel K ι} (F : BlockMap M N)
+    (e : ℕ → X ≃ K × ι) (x : X → M.A) (n : ℕ) :
+    blockRun e N.f (F.h ∘ x) n = F.h ∘ blockRun e M.f x n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    funext c
+    simp only [blockRun, ih, blockStep, Function.comp_apply]
+    exact (congrFun (F.comm n (e n c).1 _) (e n c).2).symm
+
+/-- A way to forget something about cell states of a block model, and to fill it back in. -/
+structure BlockLumping (M : BlockModel K ι) (B : Type u) where
+  /-- the map of cell states -/
+  h : M.A → B
+  /-- the lift of a cell state -/
+  s : B → M.A
+  /-- lifting and mapping down changes nothing -/
+  h_s : ∀ b, h (s b) = b
+
+namespace BlockLumping
+
+variable {M : BlockModel K ι} {B : Type u} (q : BlockLumping M B)
+
+theorem h_comp_s_comp (y : ι → B) : q.h ∘ (q.s ∘ y) = y := by
+  funext i
+  exact q.h_s (y i)
+
+/-- The quotient block model: lift the block, apply `M`'s rule, map the result down. -/
+def model : BlockModel K ι where
+  A := B
+  f t k b := q.h ∘ M.f t k (q.s ∘ b)
+
+/-- The new states of a block, mapped by `h`, do not depend on what `h` forgets. -/
+def Descends : Prop :=
+  ∀ t k (b b' : ι → M.A), q.h ∘ b = q.h ∘ b' → q.h ∘ M.f t k b = q.h ∘ M.f t k b'
+
+/-- When the dynamics do not depend on what is forgotten, `h` is a map onto the quotient. -/
+def map (hd : q.Descends) : BlockMap M q.model where
+  h := q.h
+  comm t k b := hd t k b (q.s ∘ (q.h ∘ b)) (q.h_comp_s_comp (q.h ∘ b)).symm
+
+/-- **Any block rule that `h` commutes with is the quotient's**, whichever section was used. -/
+theorem rule_unique {g : ℕ → K → (ι → B) → ι → B}
+    (comm : ∀ t k b, q.h ∘ M.f t k b = g t k (q.h ∘ b)) : g = q.model.f := by
+  funext t k b
+  show g t k b = q.h ∘ M.f t k (q.s ∘ b)
+  rw [comm, q.h_comp_s_comp]
+
+/-- **`h` commutes with some block rule exactly when the dynamics do not depend on what it
+forgets.** -/
+theorem descends_iff_exists_rule :
+    q.Descends ↔ ∃ g : ℕ → K → (ι → B) → ι → B, ∀ t k b, q.h ∘ M.f t k b = g t k (q.h ∘ b) := by
+  constructor
+  · intro hd
+    exact ⟨q.model.f, (q.map hd).comm⟩
+  · rintro ⟨g, comm⟩ t k b b' e
+    rw [comm, comm, e]
+
+/-- **The quotient runs every run of the original, mapped by `h`.** -/
+theorem blockRun_quotient (hd : q.Descends) (e : ℕ → X ≃ K × ι) (x : X → M.A) (n : ℕ) :
+    blockRun e q.model.f (q.h ∘ x) n = q.h ∘ blockRun e M.f x n :=
+  (q.map hd).blockRun_map e x n
+
+end BlockLumping
 
 end CategoricalCellularAutomataProofs
 ```

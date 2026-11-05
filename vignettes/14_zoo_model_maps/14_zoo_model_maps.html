@@ -2248,6 +2248,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
   <li><a href="#a-management-model-and-its-base-model" id="toc-a-management-model-and-its-base-model" class="nav-link" data-scroll-target="#a-management-model-and-its-base-model">A management model and its base model</a></li>
   <li><a href="#percolation-inside-a-viral-front" id="toc-percolation-inside-a-viral-front" class="nav-link" data-scroll-target="#percolation-inside-a-viral-front">Percolation inside a viral front</a></li>
   <li><a href="#quotients-of-models-with-callbacks" id="toc-quotients-of-models-with-callbacks" class="nav-link" data-scroll-target="#quotients-of-models-with-callbacks">Quotients of models with callbacks</a></li>
+  <li><a href="#a-block-rule-enemies-that-cannot-catch-anything" id="toc-a-block-rule-enemies-that-cannot-catch-anything" class="nav-link" data-scroll-target="#a-block-rule-enemies-that-cannot-catch-anything">A block rule: enemies that cannot catch anything</a></li>
   <li><a href="#a-short-run-can-hide-a-dependence" id="toc-a-short-run-can-hide-a-dependence" class="nav-link" data-scroll-target="#a-short-run-can-hide-a-dependence">A short run can hide a dependence</a></li>
   <li><a href="#what-a-quotient-cannot-express" id="toc-what-a-quotient-cannot-express" class="nav-link" data-scroll-target="#what-a-quotient-cannot-express">What a quotient cannot express</a></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
@@ -2291,7 +2292,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cn">ENV</span>[<span class="st">&quot;GKSwstype&quot;</span>] <span class="op">=</span> <span class="st">&quot;100&quot;</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CategoricalCellularAutomata</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">EcologicalCellularAutomata</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CellularAutomataCore</span>: CellularAutomataCore, CAProblem, solve, remake, Torus</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CellularAutomataCore</span>: CellularAutomataCore, CAProblem, solve, remake, Torus, Margolus</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Catlab</span>: codom</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">Plots</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -2412,19 +2413,35 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 </div>
 <p>Each <code>true</code> has a reason in the model’s code. The mealybug’s <code>loss</code> is written by the rule and read only by a summary of the yield. The potato moth’s <code>source</code>, the origin of a cell’s moths, is the published counterpart of the lineage label in the previous vignette: it is copied from a neighbour or set when a farmer’s team brings moths in, and it never decides anything. In the western X orchard, <code>age</code> sets yields and costs in the economic summary but not the epidemic. The ash borer’s layers show that the answer belongs to the problem as well as the model: <code>large</code> matters once there is a treatment, and <code>phloem0</code> only under the stress bias.</p>
 </section>
+<section id="a-block-rule-enemies-that-cannot-catch-anything" class="level2">
+<h2 class="anchored" data-anchor-id="a-block-rule-enemies-that-cannot-catch-anything">A block rule: enemies that cannot catch anything</h2>
+<p>The three-layer Bt crop model is a block rule <span class="citation" data-cites="Yang2009">(<a href="#ref-Yang2009" role="doc-biblioref">Yang et al. 2009</a>)</span>, solved with the Margolus scheme: pests and their enemies move in 2 × 2 blocks over a plant layer. Its quotient is a block rule too, lifting a block and mapping the new block down. None of its nine layers can be forgotten alone, but all four enemy layers can be forgotten together when enemies cannot catch anything. Then they never touch the pests, though they are there at the start and only later starve:</p>
+<div id="16" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>bt <span class="op">=</span> <span class="fu">build</span>(<span class="op">:</span>bt_crop_three_layer)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>no_enemies <span class="op">=</span> <span class="fu">forget_layers</span>(bt, <span class="op">:</span>enemy, <span class="op">:</span>enemy_age, <span class="op">:</span>enemy_hunger, <span class="op">:</span>enemy_genome)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">map</span>(((; P_DB<span class="op">=</span><span class="fl">0.6</span>, P_DC<span class="op">=</span><span class="fl">0.6</span>), (; P_DB<span class="op">=</span><span class="fl">0.0</span>, P_DC<span class="op">=</span><span class="fl">0.0</span>))) <span class="cf">do</span> predation</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    prob <span class="op">=</span> <span class="fu">problem</span>(<span class="op">:</span>bt_crop_three_layer; pmap<span class="op">=</span>predation)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    (; predation, enemies_at_start<span class="op">=</span><span class="fu">count</span>(prob.u0.enemy),</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>     is_map<span class="op">=</span><span class="fu">is_model_map</span>(no_enemies, prob; alg<span class="op">=</span><span class="fu">Margolus</span>()))</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<pre><code>((predation = (P_DB = 0.6, P_DC = 0.6), enemies_at_start = 4981, is_map = false), (predation = (P_DB = 0.0, P_DC = 0.0), enemies_at_start = 4981, is_map = true))</code></pre>
+</div>
+</div>
+</section>
 <section id="a-short-run-can-hide-a-dependence" class="level2">
 <h2 class="anchored" data-anchor-id="a-short-run-can-hide-a-dependence">A short run can hide a dependence</h2>
 <p>A <code>false</code> disproves a map, but a <code>true</code> holds only for the problem and the span that was run. The grapevine leafroll model has an <code>age</code> layer, and forgetting it looks harmless at first:</p>
-<div id="16" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>vine <span class="op">=</span> <span class="fu">problem</span>(<span class="op">:</span>grapevine_leafroll)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>forget_age <span class="op">=</span> <span class="fu">forget_layers</span>(<span class="fu">build</span>(<span class="op">:</span>grapevine_leafroll), <span class="op">:</span>age)</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>full <span class="op">=</span> <span class="fu">solve</span>(vine)</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>down <span class="op">=</span> <span class="fu">solve</span>(<span class="fu">pushforward</span>(forget_age, vine; callback<span class="op">=:</span>lift))</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>(first_month_that_differs<span class="op">=</span>full.t[<span class="fu">findfirst</span>(i <span class="op">-&gt;</span> <span class="fu">pushforward</span>(forget_age, full.u[i]) <span class="op">!=</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>                                                down.u[i], <span class="fu">eachindex</span>(full.u))],</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a> months<span class="op">=</span>vine.tspan[<span class="fl">2</span>],</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a> is_map_over<span class="op">=</span><span class="fu">map</span>(T <span class="op">-&gt;</span> T <span class="op">=&gt;</span> <span class="fu">is_model_map</span>(forget_age, <span class="fu">remake</span>(vine; tspan<span class="op">=</span>(<span class="fl">0</span>, T));</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>                                        callback<span class="op">=:</span>lift), (<span class="fl">40</span>, <span class="fl">60</span>, <span class="fl">100</span>, <span class="fl">600</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="18" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>vine <span class="op">=</span> <span class="fu">problem</span>(<span class="op">:</span>grapevine_leafroll)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>forget_age <span class="op">=</span> <span class="fu">forget_layers</span>(<span class="fu">build</span>(<span class="op">:</span>grapevine_leafroll), <span class="op">:</span>age)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>full <span class="op">=</span> <span class="fu">solve</span>(vine)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>down <span class="op">=</span> <span class="fu">solve</span>(<span class="fu">pushforward</span>(forget_age, vine; callback<span class="op">=:</span>lift))</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>(first_month_that_differs<span class="op">=</span>full.t[<span class="fu">findfirst</span>(i <span class="op">-&gt;</span> <span class="fu">pushforward</span>(forget_age, full.u[i]) <span class="op">!=</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>                                                down.u[i], <span class="fu">eachindex</span>(full.u))],</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a> months<span class="op">=</span>vine.tspan[<span class="fl">2</span>],</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a> is_map_over<span class="op">=</span><span class="fu">map</span>(T <span class="op">-&gt;</span> T <span class="op">=&gt;</span> <span class="fu">is_model_map</span>(forget_age, <span class="fu">remake</span>(vine; tspan<span class="op">=</span>(<span class="fl">0</span>, T));</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>                                        callback<span class="op">=:</span>lift), (<span class="fl">40</span>, <span class="fl">60</span>, <span class="fl">100</span>, <span class="fl">600</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>(first_month_that_differs = 61, months = 600, is_map_over = (40 =&gt; true, 60 =&gt; true, 100 =&gt; false, 600 =&gt; false))</code></pre>
 </div>
@@ -2434,8 +2451,8 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <section id="what-a-quotient-cannot-express" class="level2">
 <h2 class="anchored" data-anchor-id="what-a-quotient-cannot-express">What a quotient cannot express</h2>
 <p>Some layers matter within a step and not between steps. The ash borer’s <code>larvae1</code> is written by the rule and read by the callback in the same step, and the next rule overwrites it without reading it, so what a saved state holds in that layer is never used. Even so, forgetting it is not a map of this kind:</p>
-<div id="18" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">forgets</span>(<span class="op">:</span>emerald_ash_borer, <span class="op">:</span>larvae1; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">41</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="20" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">forgets</span>(<span class="op">:</span>emerald_ash_borer, <span class="op">:</span>larvae1; kw<span class="op">=</span>(; n<span class="op">=</span><span class="fl">41</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="1">
 <pre><code>(model = :emerald_ash_borer, layer = :larvae1, setting = &quot;&quot;, is_map = false)</code></pre>
 </div>
@@ -2444,7 +2461,7 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <p>Other limits:</p>
 <ul>
 <li>A layer that never leaves its default passes vacuously. <code>rogued</code> and <code>tested</code> in the grapevine model are like that at its default settings, which says nothing about the runs that use them.</li>
-<li>Block rules, such as the three-layer Bt crop model’s, are not stepped cell by cell, and <code>quotient</code> refuses them.</li>
+<li>Event rules, which give rates rather than a next state, are refused by <code>quotient</code>.</li>
 <li>A callback may refuse to run on what is left. Forgetting <code>farmers</code> in the potato moth model raises the model’s own error, and that is an answer too.</li>
 <li>The dune model with <code>speedup = 0</code> is not an example: it is one model at another parameter value, not a second model.</li>
 </ul>
@@ -2506,6 +2523,16 @@ var requirejs,require,define;(function(global,setTimeout){var req,s,head,baseEle
 <td>a map</td>
 </tr>
 <tr class="odd">
+<td>Bt crop without its enemy layers, no predation</td>
+<td>run, block rule</td>
+<td>a map</td>
+</tr>
+<tr class="even">
+<td>the same, with predation</td>
+<td>run, block rule</td>
+<td>not a map</td>
+</tr>
+<tr class="odd">
 <td>grapevine without <code>age</code></td>
 <td>run, lifted callback</td>
 <td>not a map, from month 61</td>
@@ -2535,6 +2562,9 @@ Mercader, Rodrigo J., Nathan W. Siegert, Andrew M. Liebhold, and Deborah G. McCu
 </div>
 <div id="ref-Mercader2011b" class="csl-entry" role="listitem">
 Mercader, Rodrigo J., Nathan W. Siegert, Andrew M. Liebhold, and Deborah G. McCullough. 2011b. <span>“Simulating the Effectiveness of Three Potential Management Options to Slow the Spread of Emerald Ash Borer (<em>Agrilus Planipennis</em>) Populations in Localized Outlier Sites.”</span> <em>Canadian Journal of Forest Research</em> 41 (2): 254–64. <a href="https://doi.org/10.1139/X10-201">https://doi.org/10.1139/X10-201</a>.
+</div>
+<div id="ref-Yang2009" class="csl-entry" role="listitem">
+Yang, Jun, Zhi-Rui Wang, De-Li Yang, Qing Yang, Jun Yan, and Ming-Feng He. 2009. <span>“Ecological Risk Assessment of Genetically Modified Crops Based on Cellular Automata Modeling.”</span> <em>Biotechnology Advances</em> 27 (6): 1132–36. <a href="https://doi.org/10.1016/j.biotechadv.2009.05.024">https://doi.org/10.1016/j.biotechadv.2009.05.024</a>.
 </div>
 </div></section></div></main>
 <!-- /main column -->
