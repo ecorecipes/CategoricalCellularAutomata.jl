@@ -47,6 +47,8 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `instCategorySlidingModels`, `ModelMap.slidingFunctor`, `kinkMap126_not_cellwise` | `compose` of `SlidingBlockMap`s and `ModelMap`s | they form a category holding the cell-by-cell maps as a subcategory, and it is larger |
 | `kinkMap126`, `wallsMap`, `walls_need_other_coins` | vignette 15, `Maps that read neighbours` | the boundaries of rule 126 are rule 18; the boundaries of a voter model move on the coins of two cells, whichever coins are drawn, and cannot on one |
 | `factor_exists_iff`, `factor_unique`, `factor_isCA` | the search over elementary rules in the tests | through a surjective cellular automaton, a factor exists exactly when the rule respects the fibres, and is a unique cellular automaton |
+| `SlidingLumping`, `SlidingLumping.run_consistent`, `SlidingLumping.stepQ_reads`, `SlidingLumping.stepQ_unique` | `quotient(model, h, section, section_window)`, `forget_layers(...; rebuild, window)` | a section that reads neighbours: the quotient's step is local, is the only one that commutes, and runs each run that stays among the consistent states |
+| `pairLumping_run`, `pairLumping_not_descends` | `is_model_map` on such a quotient | it can hold on the consistent states and not on the others, so the local check can say no while a run says yes |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
 main theorem uses (only `propext`, `Classical.choice` and `Quot.sound` are expected).
@@ -1415,6 +1417,7 @@ end CategoricalCellularAutomataProofs
 
 ```lean
 import CategoricalCellularAutomataProofs.Models
+import CategoricalCellularAutomataProofs.Quotients
 import CategoricalCellularAutomataProofs.CurtisHedlundLyndon
 import Mathlib.Data.ZMod.Basic
 import Mathlib.Tactic.LinearCombination
@@ -1441,6 +1444,16 @@ Over a group, a surjective cellular automaton `Φ` has a cellular automaton `F'`
 `F' ∘ Φ = Φ ∘ F` exactly when `F` respects the fibres of `Φ`, and then `F'` is unique
 (`factor_exists_iff`, `factor_unique`, `factor_isCA`); over a finite group that follows from the
 Curtis–Hedlund–Lyndon theorem.
+
+A cell-by-cell map down can have a section that reads neighbours (`SlidingLumping`, the package's
+`quotient(model, h, section, section_window)`). The quotient's step lifts, steps and maps down, and
+it reads a finite window (`SlidingLumping.stepQ_reads`). Unlike a section of one cell, this can
+forget a layer that feeds back, when a cell can work it out from its neighbours. The map then holds
+on the consistent states, where what is forgotten agrees with the section, for as long as
+a run stays among them (`SlidingLumping.run_consistent`), though not on all states
+(`pairLumping_not_descends`). Where the dynamics do not depend on what is forgotten it holds
+everywhere, and this is the only step that does (`SlidingLumping.stepQ_comm`,
+`SlidingLumping.stepQ_unique`).
 
 ```lean
 namespace CategoricalCellularAutomataProofs
@@ -1675,6 +1688,135 @@ theorem factor_isCA [Finite G] {Φ : Config G A → Config G B} (hΦ : IsCA G Φ
   rw [← hΦ.shift_comm, h, hF.shift_comm, hΦ.shift_comm, h]
 
 end Factor
+```
+
+## Quotients by a section that reads neighbours
+
+```lean
+section SlidingQuotient
+
+/-- A map of cell states with a section that reads a finite window of the smaller state. -/
+structure SlidingLumping (M : CAModel X) (B : Type u) where
+  /-- the map of cell states -/
+  h : M.A → B
+  /-- the lift of a state, which may read neighbours -/
+  S : (X → B) → X → M.A
+  /-- each lifted cell reads a finite window -/
+  reads : ∃ w : X → List X, ∀ c y y', (∀ d ∈ w c, y d = y' d) → S y c = S y' c
+  /-- the lift forgets nothing that `h` keeps -/
+  h_S : ∀ y c, h (S y c) = y c
+
+namespace SlidingLumping
+
+variable {M : CAModel X} {B : Type u} (q : SlidingLumping M B) (nbrs : X → List X)
+
+/-- The quotient's step: lift the state, take a step of the model, and map down. -/
+def stepQ (t : ℕ) (y : X → B) : X → B := q.h ∘ step nbrs (M.μ t) (q.S y)
+
+/-- **The quotient's step is local**: it reads the windows of the cells the model's rule reads. -/
+theorem stepQ_reads (t : ℕ) : ∃ w : X → List X, ∀ c y y', (∀ d ∈ w c, y d = y' d) →
+    q.stepQ nbrs t y c = q.stepQ nbrs t y' c := by
+  obtain ⟨w, hw⟩ := q.reads
+  refine ⟨fun c => (nbrs c).flatMap w, fun c y y' e => ?_⟩
+  have : (nbrs c).map (q.S y) = (nbrs c).map (q.S y') :=
+    List.map_congr_left fun d hd => hw d y y' fun b hb => e b (List.mem_flatMap.mpr ⟨d, hd, hb⟩)
+  simp only [stepQ, step, Function.comp_apply, this]
+
+/-- A consistent state: what `h` forgets is what the section would rebuild. -/
+def Consistent (x : X → M.A) : Prop := q.S (q.h ∘ x) = x
+
+/-- From a consistent state, the quotient's step is the model's step, mapped down. -/
+theorem stepQ_of_consistent {x : X → M.A} (hx : q.Consistent x) (t : ℕ) :
+    q.stepQ nbrs t (q.h ∘ x) = q.h ∘ step nbrs (M.μ t) x := by
+  simp only [stepQ]
+  rw [hx]
+
+/-- **The quotient runs a run of the model that stays among the consistent states, mapped down.**
+Nothing is needed of the dynamics on other states. -/
+theorem run_consistent (x : X → M.A) (n : ℕ) (hc : ∀ k < n, q.Consistent (run nbrs M.μ x k)) :
+    iterateStep (q.stepQ nbrs) (q.h ∘ x) n = q.h ∘ run nbrs M.μ x n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    simp only [iterateStep, run]
+    rw [ih fun k hk => hc k (Nat.lt_succ_of_lt hk)]
+    exact q.stepQ_of_consistent nbrs (hc n (Nat.lt_succ_self n)) n
+
+/-- A run stays among the consistent states when each step keeps them so. -/
+theorem run_of_invariant {x : X → M.A} (h0 : q.Consistent x)
+    (inv : ∀ t x, q.Consistent x → q.Consistent (step nbrs (M.μ t) x)) (n : ℕ) :
+    iterateStep (q.stepQ nbrs) (q.h ∘ x) n = q.h ∘ run nbrs M.μ x n := by
+  refine q.run_consistent nbrs x n fun k _ => ?_
+  induction k with
+  | zero => exact h0
+  | succ k ih => exact inv k _ (ih (by omega))
+
+/-- The dynamics do not depend on what `h` forgets. -/
+def Descends : Prop := ∀ t (x x' : X → M.A), q.h ∘ x = q.h ∘ x' →
+  q.h ∘ step nbrs (M.μ t) x = q.h ∘ step nbrs (M.μ t) x'
+
+theorem h_comp_S (y : X → B) : q.h ∘ q.S y = y := funext (q.h_S y)
+
+/-- **Where the dynamics do not depend on what is forgotten, the map holds on every state.** -/
+theorem stepQ_comm (hd : q.Descends nbrs) (t : ℕ) (x : X → M.A) :
+    q.stepQ nbrs t (q.h ∘ x) = q.h ∘ step nbrs (M.μ t) x :=
+  hd t _ _ (q.h_comp_S _)
+
+/-- **Any step that `h` commutes with is the quotient's.** -/
+theorem stepQ_unique {G : ℕ → (X → B) → X → B}
+    (comm : ∀ t x, G t (q.h ∘ x) = q.h ∘ step nbrs (M.μ t) x) : G = q.stepQ nbrs := by
+  funext t y
+  have := comm t (q.S y)
+  rwa [q.h_comp_S] at this
+
+end SlidingLumping
+
+variable {n : ℕ}
+
+/-- A state written as pairs of neighbouring cells, under the shift: each cell takes the second of
+its pair, and the second of the next cell's. -/
+def pairModel (n : ℕ) : CAModel (ZMod n) where
+  A := Bool × Bool
+  μ _ _ l := match l with
+    | [_, m, r] => (m.2, r.2)
+    | _ => (false, false)
+
+/-- Forgetting the second of each pair, which the next cell can rebuild. -/
+def pairLumping : SlidingLumping (pairModel n) Bool where
+  h := Prod.fst
+  S y c := (y c, y (c + 1))
+  reads := ⟨fun c => [c, c + 1], fun c y y' e => by simp [e c (by simp), e (c + 1) (by simp)]⟩
+  h_S _ _ := rfl
+
+/-- A pair is consistent when its second is the first of the next cell's. -/
+theorem pairLumping_consistent_iff {x : ZMod n → (pairModel n).A} :
+    pairLumping.Consistent x ↔ ∀ c, (x c).2 = (x (c + 1)).1 := by
+  constructor
+  · intro h c
+    exact (congrArg Prod.snd (congrFun h c)).symm
+  · intro h
+    funext c
+    exact Prod.ext rfl (h c).symm
+
+/-- **The quotient runs each run of consistent pairs, mapped down.** -/
+theorem pairLumping_run {x : ZMod n → (pairModel n).A} (h0 : pairLumping.Consistent x) (k : ℕ) :
+    iterateStep (pairLumping.stepQ (ringNbrs n)) (pairLumping.h ∘ x) k =
+      pairLumping.h ∘ run (ringNbrs n) (pairModel n).μ x k := by
+  refine pairLumping.run_of_invariant (ringNbrs n) h0 (fun t x hx => ?_) k
+  rw [pairLumping_consistent_iff] at hx ⊢
+  intro c
+  simp only [step, ringNbrs, pairModel, List.map, add_sub_cancel_right]
+
+/-- **The map holds on the consistent states and not on the others**, so a section that reads
+neighbours reaches further than the condition on every state: the first of a next pair depends on
+the second of this one, which `h` forgets. -/
+theorem pairLumping_not_descends : ¬ pairLumping.Descends (ringNbrs n) := by
+  intro hd
+  have e := hd 0 (fun _ => (false, false)) (fun _ => (false, true)) rfl
+  have := congrFun e 0
+  simp [step, ringNbrs, pairModel, pairLumping] at this
+
+end SlidingQuotient
 
 end CategoricalCellularAutomataProofs
 ```

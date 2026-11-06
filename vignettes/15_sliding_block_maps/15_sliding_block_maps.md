@@ -7,6 +7,7 @@ Simon Frost
   rule](#which-rules-have-boundaries-that-are-a-rule)
 - [Two species that copy](#two-species-that-copy)
 - [Composing maps](#composing-maps)
+- [Building the codomain](#building-the-codomain)
 - [Limits](#limits)
 - [Summary](#summary)
 - [References](#references)
@@ -23,12 +24,14 @@ commutes with the two models’ steps, and every run then maps to a run
 exactly.
 
 This is a **research extension**, beyond the papers the package
-implements. The models here are small ones written for the purpose.
+implements. The models are small ones written for the purpose, until the
+last section, which forgets a layer of a published model.
 
 ``` julia
 ENV["GKSwstype"] = "100"
 using CategoricalCellularAutomata
 using CellularAutomataCore
+using EcologicalCellularAutomata
 using Random
 using Plots
 ```
@@ -268,6 +271,78 @@ from_the_original = pushforward(up, CAProblem(rule110, (; x=u), 30; space=Torus(
 Sliding maps form a category that holds the cell-by-cell maps as a
 subcategory (`instCategorySlidingModels`, `ModelMap.slidingFunctor`).
 
+## Building the codomain
+
+So far the codomain has been written by hand. If the map down reads one
+cell and the lift reads neighbours, the codomain can come from the
+domain’s own rule: `quotient(model, h, section, window)` lifts the cell
+and each neighbour the rule reads, applies the rule, and maps the result
+down, so the new rule reads further than the old one. The second of each
+pair in the last section can be rebuilt from the next cell, and the
+quotient of the pairs model is then rule 110 again. That is checked on
+every configuration, with no copy of rule 110 in the construction:
+
+``` julia
+forget_second = quotient(pairs, c -> c.a, (a, nbrs) -> (a=a, b=nbrs[1]), next_cell;
+                         states=bit(), dims=1)
+agreeing = (a=u, b=circshift(u, -1))
+start_pairs(v) = CAProblem(pairs, v, 30; space=Torus(48), seed=2)
+(rebuilt_rule_is_110=is_model_map(SlidingBlockMap(forget_second.codom, rule110, (c, _) -> c,
+                                                  nothing); dims=1),
+ on_every_pair=is_model_map(forget_second; dims=1),
+ from_pairs_that_agree=is_model_map(forget_second, start_pairs(agreeing)),
+ from_pairs_that_do_not=is_model_map(forget_second,
+                                     start_pairs((a=u, b=1 .- circshift(u, -1)))))
+```
+
+    (rebuilt_rule_is_110 = true, on_every_pair = false, from_pairs_that_agree = true, from_pairs_that_do_not = false)
+
+This is why the local check can say no while a run says yes. The map
+holds on the states where what is forgotten agrees with the section, for
+as long as a run stays among them, and not on the others. The Lean
+library proves both (`SlidingLumping.run_consistent`,
+`pairLumping_not_descends`), and that the new step reads a finite window
+and is the only one the map can commute with
+(`SlidingLumping.stepQ_reads`, `SlidingLumping.stepQ_unique`).
+
+So a layer that feeds back can go, if a cell can work it out from its
+neighbours. The regional model of pesticide resistance ([Peck and Ellner
+1997](#ref-Peck1997)) stores each field’s number of `neighbours` in the
+lattice, and its rule reads that, so filling the layer with a default
+changes the run. But a field’s neighbours are those with a carrying
+capacity, as the fixed edge of the grid reads as zero.
+`forget_layers(...; rebuild, window)` says so, and the whole run is then
+reproduced exactly:
+
+``` julia
+count_fields(c, nbrs) = (; neighbours=Int8(c.K > 0 ? count(n -> n.K > 0, nbrs) : 0))
+map((:von_neumann => VonNeumann(1), :moore => Moore(1))) do (neighbourhood, window)
+    regional = build_resistance_regional(; neighbourhood)
+    p = problem(:resistance_regional; neighbourhood)
+    (; neighbourhood, generations=p.tspan[2],
+     with_a_default=is_model_map(forget_layers(regional, :neighbours), p),
+     rebuilt=is_model_map(forget_layers(regional, :neighbours; rebuild=count_fields, window), p))
+end
+```
+
+    ((neighbourhood = :von_neumann, generations = 250, with_a_default = false, rebuilt = true), (neighbourhood = :moore, generations = 250, with_a_default = false, rebuilt = true))
+
+The claim belongs to the problem, as ever. A state with a wrong count is
+not consistent, and if refuges have no carrying capacity (`kappa = 0`)
+the count no longer finds them:
+
+``` julia
+no_neighbours = forget_layers(build(:resistance_regional), :neighbours; rebuild=count_fields,
+                              window=VonNeumann(1))
+default_problem = problem(:resistance_regional)
+wrong_count = merge(default_problem.u0, (; neighbours=fill(Int8(4), size(default_problem.u0.K))))
+(default_settings=is_model_map(no_neighbours, default_problem),
+ wrong_count=is_model_map(no_neighbours, remake(default_problem; u0=wrong_count)),
+ refuges_with_no_capacity=is_model_map(no_neighbours, problem(:resistance_regional; kappa=0.0)))
+```
+
+    (default_settings = true, wrong_count = false, refuges_with_no_capacity = false)
+
 ## Limits
 
 An edge is read as a rule reads it, and that counts. Rule 90 and the
@@ -285,9 +360,14 @@ edges = rand(Xoshiro(3), 0:1, 32)
 
 Other limits:
 
-- A sliding map has no section in general, so there is no quotient and a
-  callback cannot move with it: the codomain is written by hand and
-  checked, and `callback=:lift` is refused.
+- A map that reads a window has no section in general, and then the
+  codomain is written by hand and a callback cannot move with it. With a
+  section, `callback=:lift` and `:lift_step` work. A quotient has a map
+  down that reads one cell, since a rule can draw only its own cell’s
+  random numbers.
+- A section that reads neighbours adds to the rule’s reach, and needs a
+  lattice. It refuses block and event rules and models with kernel
+  fields.
 - The local check is for rules that name their neighbourhood, without
   covariates or kernel fields. Block rules, event rules and models that
   read covariates are checked by running.
@@ -310,6 +390,11 @@ Other limits:
 | rule 110 → its pairs | every local assignment | a map |
 | its pairs → rule 110, forgetting | every local assignment; run from the original | not a map; agrees on that run |
 | rule 110 → its pairs → rule 110 | every local assignment | a map, the identity |
+| pairs → their quotient, forgetting the second | every local assignment; run from pairs that agree; from pairs that do not | not a map; a map; not a map |
+| that quotient → rule 110 | every local assignment | a map, the identity |
+| regional resistance without `neighbours`, a default | run | not a map |
+| regional resistance without `neighbours`, rebuilt from neighbours | run, both neighbourhoods | a map |
+| the same, a wrong count, or `kappa = 0` | run | not a map |
 | rule 90, boundary map, grid with fixed edges | run | not a map |
 
 ## References
@@ -345,6 +430,15 @@ Probability* 3 (4): 643–63. <https://doi.org/10.1214/aop/1176996306>.
 Lind, Douglas, and Brian Marcus. 1995. *An Introduction to Symbolic
 Dynamics and Coding*. Cambridge University Press.
 <https://doi.org/10.1017/CBO9780511626302>.
+
+</div>
+
+<div id="ref-Peck1997" class="csl-entry">
+
+Peck, Steven L., and Stephen P. Ellner. 1997. “The Effect of Economic
+Thresholds and Life-History Parameters on the Evolution of Pesticide
+Resistance in a Regional Setting.” *The American Naturalist* 149 (1):
+43–63. <https://doi.org/10.1086/285978>.
 
 </div>
 

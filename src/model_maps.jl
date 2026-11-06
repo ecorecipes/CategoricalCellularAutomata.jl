@@ -329,21 +329,25 @@ CAC.u_modified!(i::_LiftedIntegrator, modified::Bool) = nothing
 CAC.SciMLBase.add_tstop!(i::_LiftedIntegrator, t) = CAC.SciMLBase.add_tstop!(i.outer, t)
 CAC.SciMLBase.derivative_discontinuity!(::_LiftedIntegrator, ::Bool) = nothing
 
-function _lift_state(f::ModelMap, u)
+# A state lifted, and mapped down: `space` is for the maps that read neighbours.
+function _lift_state(f::ModelMap, u, space)
     return _from_cell_values(f.dom, map(f.section, _cell_values(f.codom, u)))
 end
-function _lifted(f::ModelMap, integ, prob)
-    return _LiftedIntegrator(integ, _lift_state(f, integ.u), integ.t, integ.p, prob)
+_state_down(f::ModelMap, u, space) = pushforward(f, u)
+function _lifted(f, integ, prob)
+    return _LiftedIntegrator(integ, _lift_state(f, integ.u, prob.space), integ.t, integ.p,
+                             prob)
 end
-function _lower!(f::ModelMap, integ, lifted)
-    integ.u = pushforward(f, lifted.u)
+function _lower!(f, integ, lifted)
+    integ.u = _state_down(f, lifted.u, lifted.prob.space)
     integ.p = lifted.p
     return nothing
 end
 
-_lift_one(::ModelMap, ::Nothing, prob) = nothing
-function _lift_one(f::ModelMap, cb::CAC.DiscreteCallback, prob)
-    condition = (u, t, integ) -> cb.condition(_lift_state(f, u), t, _lifted(f, integ, prob))
+_lift_one(f, ::Nothing, prob) = nothing
+function _lift_one(f, cb::CAC.DiscreteCallback, prob)
+    condition = (u, t, integ) -> cb.condition(_lift_state(f, u, prob.space), t,
+                                              _lifted(f, integ, prob))
     affect! = function (integ)
         lifted = _lifted(f, integ, prob)
         cb.affect!(lifted)
@@ -364,14 +368,14 @@ function _lift_one(f::ModelMap, cb::CAC.DiscreteCallback, prob)
     return CAC.DiscreteCallback(condition, affect!; initialize, finalize,
                                 save_positions=cb.save_positions)
 end
-function _lift_one(f::ModelMap, cb::CAC.CallbackSet, prob)
+function _lift_one(f, cb::CAC.CallbackSet, prob)
     return CAC.CallbackSet((_lift_one(f, c, prob) for c in cb.discrete_callbacks)...)
 end
-function _lift_one(f::ModelMap, cb::Union{Tuple,AbstractVector}, prob)
+function _lift_one(f, cb::Union{Tuple,AbstractVector}, prob)
     return map(c -> _lift_one(f, c, prob), cb)
 end
 
-function _check_liftable(f::ModelMap, how)
+function _check_liftable(f, how)
     f.section === nothing &&
         throw(ArgumentError("$f has no section to lift the state with; give one with `section=`, or use `quotient`"))
     f.parameters === identity ||
@@ -379,7 +383,7 @@ function _check_liftable(f::ModelMap, how)
     return nothing
 end
 
-function _lift_callback(f::ModelMap, prob::CAC.CAProblem)
+function _lift_callback(f, prob::CAC.CAProblem)
     _check_liftable(f, ":lift")
     return _lift_one(f, get(prob.kwargs, :callback, nothing), prob)
 end
@@ -389,7 +393,7 @@ end
 # and maps the result down. That integrator belongs to one run (it lives in the backend's state,
 # made by `init`), so callbacks keep what they keep from step to step, and ensembles can share the
 # problem.
-struct _WholeStepRule{F<:ModelMap,P<:CAC.CAProblem,A} <: CAC.AbstractRule
+struct _WholeStepRule{F,P<:CAC.CAProblem,A} <: CAC.AbstractRule
     map::F
     problem::P
     alg::A
@@ -408,12 +412,13 @@ end
 function CAC.allocate_state(::CAC.ArrayBackend, prob::CAC.CAProblem{<:_WholeStepRule},
                             ::CAC.Synchronous)
     r = prob.rule
-    start = CAC.remake(r.problem; u0=_lift_state(r.map, prob.u0), tspan=prob.tspan,
-                       p=prob.p, seed=prob.seed, covariates=prob.covariates,
+    start = CAC.remake(r.problem; u0=_lift_state(r.map, prob.u0, prob.space),
+                       tspan=prob.tspan, p=prob.p, seed=prob.seed,
+                       covariates=prob.covariates,
                        mask=prob.mask)
     inner = CAC.init(start, r.alg; saveat=nothing, save_everystep=false, save_start=false,
                      save_end=false)
-    return _WholeStepState(pushforward(r.map, inner.u), inner)
+    return _WholeStepState(_state_down(r.map, inner.u, prob.space), inner)
 end
 
 function CAC.advance!(::CAC.ArrayBackend, st::_WholeStepState, prob, ::CAC.Synchronous, p,
@@ -421,9 +426,9 @@ function CAC.advance!(::CAC.ArrayBackend, st::_WholeStepState, prob, ::CAC.Synch
     inner = st.inner
     inner.t = t
     inner.p = p
-    inner.u = _lift_state(prob.rule.map, st.u)
+    inner.u = _lift_state(prob.rule.map, st.u, prob.space)
     CAC.step!(inner)
-    st.u = pushforward(prob.rule.map, inner.u)
+    st.u = _state_down(prob.rule.map, inner.u, prob.space)
     return nothing
 end
 
@@ -433,8 +438,8 @@ function CAC.set_state!(::CAC.ArrayBackend, st::_WholeStepState, u)
     return nothing
 end
 function CAC._restart!(st::_WholeStepState, prob, p, t0)
-    CAC.reinit!(st.inner, _lift_state(prob.rule.map, st.u); t0)
-    st.u = pushforward(prob.rule.map, st.inner.u)
+    CAC.reinit!(st.inner, _lift_state(prob.rule.map, st.u, prob.space); t0)
+    st.u = _state_down(prob.rule.map, st.inner.u, prob.space)
     return nothing
 end
 
@@ -457,7 +462,7 @@ function _whole_step_callback()
                                 save_positions=(false, false))
 end
 
-function _whole_step_problem(f::ModelMap, prob::CAC.CAProblem, alg)
+function _whole_step_problem(f, prob::CAC.CAProblem, alg)
     _check_liftable(f, ":lift_step")
     alg isa CAC.Gillespie &&
         throw(ArgumentError("`callback=:lift_step` needs a scheme with whole steps, not $alg"))
@@ -538,6 +543,7 @@ end
 
 """
     forget_layers(model, layers...; name) -> ModelMap
+    forget_layers(model, layers...; rebuild, window, name, space, dims) -> SlidingBlockMap
 
 The [`quotient`](@ref) of `model` that forgets some of its state layers: the
 cell states keep the other layers, and a cell is lifted by giving the forgotten
@@ -545,9 +551,20 @@ layers their defaults. It is a map of models when the forgotten layers do not
 feed back on the ones kept ([`is_model_map`](@ref)): layers that only record,
 such as the time at which a cell was reached, or labels the rule never reads.
 Naming a layer the model does not have, or every layer, raises `ArgumentError`.
+
+With `rebuild` a layer that does feed back can still go, if a cell can work it out
+from what it and its neighbours keep. `rebuild(cell, nbrs)` reads the kept cell
+and those of the neighbourhood `window` and gives a `NamedTuple` of forgotten layers,
+any left out taking their defaults. Then a map holds on the states where the layers agree with
+what `rebuild` says, not on others: check a problem by running it. See the
+[`quotient`](@ref quotient(::CellularAutomataCore.CAModel, ::Any, ::Any, ::CellularAutomataCore.AbstractNeighbourhood))
+that it builds, for `space` and `dims`.
 """
 function forget_layers(model::CAC.CAModel, layers::Symbol...;
-                       name::Symbol=Symbol(model.name, :_without_, join(layers, :_)))
+                       name::Symbol=Symbol(model.name, :_without_, join(layers, :_)),
+                       rebuild=nothing, window=nothing, space=nothing, dims::Integer=2)
+    (rebuild === nothing) == (window === nothing) ||
+        throw(ArgumentError("`rebuild` and `window` go together: `rebuild(cell, nbrs)` reads the neighbourhood `window`"))
     names = _names(model)
     for l in layers
         l in names ||
@@ -561,7 +578,9 @@ function forget_layers(model::CAC.CAModel, layers::Symbol...;
     section = length(kept) == 1 ? (b -> merge(full, NamedTuple{kept}((b,)))) :
               (b -> merge(full, b))
     states = [s for s in model.states if s.name in kept]
-    return quotient(model, h, section; states, name)
+    rebuild === nothing && return quotient(model, h, section; states, name)
+    rebuilt = (b, nbrs) -> merge(section(b), rebuild(b, nbrs))
+    return quotient(model, h, rebuilt, window; states, name, space, dims)
 end
 
 const _Model = CAC.CAModel

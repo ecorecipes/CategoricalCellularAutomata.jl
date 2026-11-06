@@ -290,6 +290,116 @@
         @test new.space == prob.space
     end
 
+    @testset "a quotient whose section reads neighbours" begin
+        # pairs of neighbouring cells, forgetting the second: the section rebuilds it from the next
+        # cell, and the quotient's rule is rule 110 again, on every configuration
+        step110(l, m, r) = (110 >> (4l + 2m + r)) & 1
+        pair_states = [StateVariable(:a, 0; domain=(0, 1)),
+                       StateVariable(:b, 0; domain=(0, 1))]
+        pairs = CAModel(LocalRule((c, nbrs, ctx) -> (a=step110(nbrs[1].a, c.a, c.b),
+                                                     b=step110(c.a, c.b, nbrs[2].b)),
+                                  Offsets((-1,), (1,))); name=:pairs, states=pair_states)
+        q = quotient(pairs, c -> c.a, (a, nbrs) -> (a=a, b=nbrs[1]), Offsets((1,));
+                     states=bit(), dims=1)
+        @test q isa SlidingBlockMap
+        @test q.window === nothing
+        @test q.parameters === identity
+        @test sprint(show, q.codom.rule) == "sliding quotient of $(pairs.rule)"
+        rebuilt = q.codom
+        same_rule = SlidingBlockMap(rebuilt, rule(110), (c, _) -> c, nothing)
+        @test is_model_map(same_rule; dims=1)
+        # A map from states that agree with the section, and not from others. Not on every pair.
+        u = bits(32)
+        agree = (a=u, b=circshift(u, -1))
+        good = CAProblem(pairs, agree, 25; space=Torus(32), seed=1)
+        @test is_model_map(q, good)
+        @test !is_model_map(q; dims=1)
+        disagree = (a=u, b=1 .- circshift(u, -1))
+        @test !is_model_map(q, CAProblem(pairs, disagree, 25; space=Torus(32), seed=1))
+        # lifting a mapped state returns a state that agrees
+        down = pushforward(q, agree, Torus(32))
+        @test down == u
+        @test CategoricalCellularAutomata._lift_state(q, down, Torus(32)) == agree
+
+        # Stochastic: the rule's own random numbers, since `h` reads one cell. A layer that holds
+        # what the neighbours say at the last step would change, so this one is static.
+        inside(c, nbrs) = c.here ? count(n -> n.here, nbrs) : 0
+        cell_states = [StateVariable(:x, 0; domain=(0, 1)),
+                       StateVariable(:here, false; domain=(false, true)),
+                       StateVariable(:degree, 0; domain=0:4)]
+        grown = CAModel(LocalRule((c, nbrs, ctx) -> begin
+                                      c.here || return c
+                                      live = sum(n -> n.x, nbrs)
+                                      x = uniform(ctx, 1) < (live + c.x) / (c.degree + 1) ?
+                                          1 : 0
+                                      return (; c..., x)
+                                  end, VonNeumann(1)); name=:grown, states=cell_states)
+        forget = forget_layers(grown, :degree;
+                               rebuild=(c, nbrs) -> (; degree=inside(c, nbrs)),
+                               window=VonNeumann(1))
+        @test forget isa SlidingBlockMap
+        @test Tuple(s.name for s in forget.codom.states) == (:x, :here)
+        m = 9
+        here = fill(true, m, m)
+        grid = Grid(m, m)
+        degree = [count(o -> checkbounds(Bool, here, i + o[1], j + o[2]),
+                        ((-1, 0), (1, 0), (0, -1), (0, 1)))
+                  for i in 1:m, j in 1:m]
+        u0 = (x=rand(rng, 0:1, m, m), here, degree)
+        run = CAProblem(grown, u0, 30; space=grid, seed=8)
+        @test is_model_map(forget, run)
+        @test is_model_map(forget, remake(run; seed=9))
+        # the layer feeds back: without the rebuild, or with a wrong count, the map fails
+        @test !is_model_map(forget_layers(grown, :degree), run)
+        wrong = (x=u0.x, here, degree=fill(4, m, m))
+        @test !is_model_map(forget, CAProblem(grown, wrong, 30; space=grid, seed=8))
+
+        # a callback that reads the layer moves with it, in either form
+        edge_cull = PeriodicCallback(3) do integ
+            integ.u.x .*= integ.u.degree .== 4
+            u_modified!(integ, true)
+        end
+        with_cull = CAProblem(grown, u0, 30; space=grid, seed=8, callback=edge_cull)
+        @test solve(with_cull).u[end] != solve(run).u[end]
+        @test is_model_map(forget, with_cull; callback=:lift)
+        @test is_model_map(forget, with_cull; callback=:lift_step)
+        @test solve(pushforward(forget, with_cull; callback=:lift)).u ==
+              solve(pushforward(forget, with_cull; callback=:lift_step)).u
+        # without the rebuild the callback sees the default, and it shows
+        @test !is_model_map(forget_layers(grown, :degree), with_cull; callback=:lift)
+
+        # a map with a window and a section lifts as well
+        up = SlidingBlockMap(rule(110), pairs, (c, nbrs) -> (a=c, b=nbrs[1]), right;
+                             parameters=identity, section=(c, _) -> c.a,
+                             section_window=right)
+        cull = PeriodicCallback(integ -> nothing, 2)
+        lifted = CAProblem(rule(110), (; x=bits(24)), 8; space=Torus(24), callback=cull)
+        @test is_model_map(up, lifted; callback=:lift)
+        @test is_model_map(up, lifted; callback=:lift_step)
+
+        @test_throws "`rebuild` and `window` go together" forget_layers(grown, :degree;
+                                                                        window=VonNeumann(1))
+        @test_throws "`rebuild` and `window` go together" forget_layers(grown, :degree;
+                                                                        rebuild=inside)
+        @test_throws "`section` and `section_window` go together" SlidingBlockMap(pairs,
+                                                                                  pairs,
+                                                                                  (c, n) -> c,
+                                                                                  nothing;
+                                                                                  section=(c, n) -> c)
+        blocks = CAModel(BlockRule((block, ctx) -> block); name=:blocks, states=bit())
+        @test_throws "event or block rule" quotient(blocks, identity, (c, n) -> c, right;
+                                                    states=bit(), dims=1)
+        kernel = CAModel(LocalRule((c, nbrs, ctx) -> c, right); name=:kernel, states=bit(),
+                         fields=(;
+                                 dust=KernelField(GaussianKernel(1.0; radius=2),
+                                                  c -> Float64(c))))
+        @test_throws "kernel fields" quotient(kernel, identity, (c, n) -> c, right;
+                                              states=bit(),
+                                              dims=1)
+        @test_throws "needs a lattice" quotient(rule(90), identity, (c, n) -> c, right;
+                                                states=bit(), space=GraphSpace(3, [(1, 2)]))
+    end
+
     @testset "callbacks and refusals" begin
         f = kink(126, 18)
         prob = CAProblem(rule(126), (; x=bits(16)), 6; space=Torus(16),

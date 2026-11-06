@@ -4,9 +4,12 @@
 # step of the domain followed by the map is the map followed by one step of the codomain. Runs then
 # map to runs exactly. A stochastic domain's next state at a cell depends on the random numbers of
 # every cell in the window, so a codomain rule has to read those cells' numbers too.
+#
+# A map can also go the other way about: a cell-by-cell map down, with a section that reads
+# neighbours. Then the codomain's rule can be built from the domain's, reading further.
 
 """
-    SlidingBlockMap(dom, codom, h, window; parameters=nothing)
+    SlidingBlockMap(dom, codom, h, window; parameters=nothing, section=nothing, section_window=nothing)
 
 A map from the CellularAutomataCore `CAModel` `dom` to the model `codom` that
 reads neighbours: the cell of `codom` at a position is `h(cell, nbrs)`, where
@@ -24,22 +27,30 @@ sliding block codes of symbolic dynamics, and with a [`ModelMap`](@ref), which i
 empty window, they form a category ([`compose`](@ref compose(::SlidingBlockMap, ::SlidingBlockMap))).
 
 Unlike a `ModelMap` it can see what lies between cells, such as the boundaries
-between regions, but it has no [`quotient`](@ref): `codom` is written by hand and
-then checked. A stochastic `dom` makes the next state at a cell depend on the
+between regions. In general `codom` is written by hand and then checked. `window` may be
+`nothing`, for a map that reads the cell alone, and `section`, with the neighbourhood
+`section_window` it reads, lifts a state of `codom` to one of `dom`, which a callback needs in
+order to move; the [`quotient`](@ref quotient(::CellularAutomataCore.CAModel, ::Any, ::Any, ::CellularAutomataCore.AbstractNeighbourhood))
+by a section that reads neighbours builds both `codom` and the map. A stochastic `dom` makes the next state at a cell depend on the
 random numbers of every cell in the window, so the rule of `codom` must draw those too:
 a `CellularAutomataCore.CellContext` with another cell's id gives its numbers.
 """
-struct SlidingBlockMap{H,W,P}
+struct SlidingBlockMap{H,W,P,S,SW}
     dom::CAC.CAModel
     codom::CAC.CAModel
     h::H
     window::W
     parameters::P
+    section::S
+    section_window::SW
 end
 function SlidingBlockMap(dom::CAC.CAModel, codom::CAC.CAModel, h,
-                         window::CAC.AbstractNeighbourhood; parameters=nothing)
+                         window::Union{Nothing,CAC.AbstractNeighbourhood};
+                         parameters=nothing, section=nothing, section_window=nothing)
+    (section === nothing) == (section_window === nothing) ||
+        throw(ArgumentError("`section` and `section_window` go together: `section(cell, nbrs)` reads the neighbourhood `section_window`"))
     π = parameters === nothing ? _shared_parameters(codom) : parameters
-    return SlidingBlockMap(dom, codom, h, window, π)
+    return SlidingBlockMap(dom, codom, h, window, π, section, section_window)
 end
 
 function Base.show(io::IO, f::SlidingBlockMap)
@@ -47,7 +58,10 @@ function Base.show(io::IO, f::SlidingBlockMap)
                  f.window, ")")
 end
 
-_window_of(f::SlidingBlockMap, space) = CAC._offsets_of(CAC._resolve(f.window, space))
+function _window_of(f::SlidingBlockMap, space)
+    f.window === nothing && return ()
+    return CAC._offsets_of(CAC._resolve(f.window, space))
+end
 
 """
     pushforward(f::SlidingBlockMap, u, space)
@@ -62,8 +76,9 @@ on the new space, so a map that reverses slots needs a window to match, and
 [`is_model_map`](@ref is_model_map(::SlidingBlockMap)) will tell.
 
 A problem with a callback raises `ArgumentError` unless `callback` gives the new problem's
-own, or `nothing` for none: a sliding block map has no section, so a callback cannot move
-with it (`:lift` and `:lift_step` are refused). A problem whose rule is not the domain's raises
+own, or `nothing` for none. With a section and identity parameters it can also be `:lift` or
+`:lift_step`, as for a [`ModelMap`](@ref pushforward(::ModelMap, ::Any)), with `alg` the scheme of
+the original's whole step; without them these raise `ArgumentError`. A problem whose rule is not the domain's raises
 [`DomainMismatchError`](@ref), a mapped initial state outside a state variable's
 domain raises `CellularAutomataCore.InvalidStateError`, and a missing covariate of the
 codomain an `ArgumentError`.
@@ -75,14 +90,30 @@ function pushforward(f::SlidingBlockMap, u, space::CAC.AbstractSpace)
     return _from_cell_values(f.codom, cells)
 end
 
-function pushforward(f::SlidingBlockMap, prob::CAC.CAProblem; callback=_UNSET)
-    (callback === :lift || callback === :lift_step) &&
-        throw(ArgumentError("a sliding block map has no section, so a callback cannot move with it; give the new problem's with `callback=` (`nothing` for none)"))
-    keywords = _moved_keywords(prob, callback,
-                               "pushing a problem forward along a sliding block map")
+_state_down(f::SlidingBlockMap, u, space) = pushforward(f, u, space)
+function _lift_state(f::SlidingBlockMap, u, space)
+    offs = CAC._offsets_of(CAC._resolve(f.section_window, space))
+    cells = map(I -> f.section(CAC._read(u, I), CAC._neighbour_states(space, u, I, offs)),
+                collect(CAC.cells(space)))
+    return _from_cell_values(f.dom, cells)
+end
+
+function _mapped_initial_state(f::SlidingBlockMap, prob::CAC.CAProblem)
     u0 = pushforward(f, prob.u0, prob.space)
     _check_state_domains(f.codom, u0)
-    return _pushed_problem(f, prob, _retarget(prob.rule, f), u0, keywords, nothing)
+    return u0
+end
+
+function pushforward(f::SlidingBlockMap, prob::CAC.CAProblem; callback=_UNSET, alg=nothing)
+    callback === :lift_step &&
+        return _whole_step_problem(f, prob, alg === nothing ? CAC.Synchronous() : alg)
+    alg === nothing ||
+        throw(ArgumentError("pushforward uses `alg` only with `callback=:lift_step`; otherwise give the scheme to `solve`"))
+    callback === :lift && (callback = _lift_callback(f, prob))
+    keywords = _moved_keywords(prob, callback,
+                               "pushing a problem forward along a sliding block map")
+    return _pushed_problem(f, prob, _retarget(prob.rule, f), _mapped_initial_state(f, prob),
+                           keywords, nothing)
 end
 
 # Where a cell of `space` reads: itself and its neighbours, without those off the edge.
@@ -136,7 +167,9 @@ or kernel fields, and block and event rules, raise `ArgumentError`: check them b
 
 The second form solves `prob` and `pushforward(f, prob; callback)` with the scheme
 `alg` (and `kwargs`, such as `saveat`) and compares every saved state, exactly. A `false` disproves
-the map; a `true` holds for that problem and span only.
+the map; a `true` holds for that problem and span only. A map whose section reads neighbours may
+hold only on the states where what it forgets agrees with the section, so the first form
+can say no while a run from such a state says yes.
 """
 function is_model_map(f::SlidingBlockMap; cells=nothing, p=nothing, contexts::Integer=8,
                       samples::Union{Nothing,Integer}=nothing, space=nothing,
@@ -204,7 +237,9 @@ end
 function is_model_map(f::SlidingBlockMap, prob::CAC.CAProblem; alg=CAC.Synchronous(),
                       callback=_UNSET, kwargs...)
     sol = CAC.solve(prob, alg; kwargs...)
-    other = CAC.solve(pushforward(f, prob; callback), alg; kwargs...)
+    other = callback === :lift_step ?
+            CAC.solve(pushforward(f, prob; callback, alg); kwargs...) :
+            CAC.solve(pushforward(f, prob; callback), alg; kwargs...)
     return sol.t == other.t &&
            all(t -> isequal(pushforward(f, sol.u[t], prob.space), other.u[t]),
                eachindex(sol.u))
@@ -224,6 +259,17 @@ end
 function (c::_ComposedCode)(cell, nbrs)
     return c.g(_apply_at(c, c.at_centre, cell, nbrs),
                map(a -> _apply_at(c, a, cell, nbrs), c.at_neighbours))
+end
+
+# Where a code with the offsets `inner` reads when it is centred at the origin and at each of `outer`:
+# their sums as one window, and the slots in it of each centre and what it reads.
+function _window_sum(inner, outer)
+    origin = zero(first(inner))
+    sums = unique([a + b for a in (origin, outer...) for b in (origin, inner...)])
+    window = CAC.Offsets(Tuple(filter(!=(origin), sums)))
+    slot(o) = o == origin ? 0 : findfirst(==(o), window.offsets)
+    read_at(a) = (slot(a), map(b -> slot(a + b), inner))
+    return window, read_at(origin), map(read_at, outer)
 end
 
 function _offsets_for_composite(f::SlidingBlockMap)
@@ -257,24 +303,29 @@ the other's window, on any space. Composites of maps of models are maps of model
 """
 function compose(f::SlidingBlockMap, g::SlidingBlockMap)
     _check_composable(f, g)
-    wf, wg = _offsets_for_composite(f), _offsets_for_composite(g)
-    origin = zero(first(wf))
-    sums = unique([a + b for a in (origin, wg...) for b in (origin, wf...)])
-    window = CAC.Offsets(Tuple(filter(!=(origin), sums)))
-    slot(o) = o == origin ? 0 : findfirst(==(o), window.offsets)
-    read_at(a) = (slot(a), map(b -> slot(a + b), wf))
-    code = _ComposedCode(f.h, g.h, read_at(origin), map(read_at, wg))
-    return SlidingBlockMap(f.dom, g.codom, code, window, _composed_parameters(f, g))
+    parameters = _composed_parameters(f, g)
+    # a map that reads the cell alone adds nothing to the other's window
+    if f.window === nothing
+        h = (c, nbrs) -> g.h(f.h(c, ()), map(x -> f.h(x, ()), nbrs))
+        return SlidingBlockMap(f.dom, g.codom, h, g.window; parameters)
+    elseif g.window === nothing
+        h = (c, nbrs) -> g.h(f.h(c, nbrs), ())
+        return SlidingBlockMap(f.dom, g.codom, h, f.window; parameters)
+    end
+    window, at_centre, at_neighbours = _window_sum(_offsets_for_composite(f),
+                                                   _offsets_for_composite(g))
+    code = _ComposedCode(f.h, g.h, at_centre, at_neighbours)
+    return SlidingBlockMap(f.dom, g.codom, code, window; parameters)
 end
 function compose(f::ModelMap, g::SlidingBlockMap)
     _check_composable(f, g)
     return SlidingBlockMap(f.dom, g.codom, (c, nbrs) -> g.h(f.h(c), map(f.h, nbrs)),
-                           g.window, _composed_parameters(f, g))
+                           g.window; parameters=_composed_parameters(f, g))
 end
 function compose(f::SlidingBlockMap, g::ModelMap)
     _check_composable(f, g)
-    return SlidingBlockMap(f.dom, g.codom, (c, nbrs) -> g.h(f.h(c, nbrs)), f.window,
-                           _composed_parameters(f, g))
+    return SlidingBlockMap(f.dom, g.codom, (c, nbrs) -> g.h(f.h(c, nbrs)), f.window;
+                           parameters=_composed_parameters(f, g))
 end
 dom(f::SlidingBlockMap) = f.dom
 codom(f::SlidingBlockMap) = f.codom
@@ -296,4 +347,65 @@ function CellularAutomaton(f::SlidingBlockMap, space::CAC.Lattice{N};
     T = eltype(codom)
     μ = y -> convert(T, f.h(y[1], Tuple(y[i] for i in pos)))
     return CellularAutomaton(G, memory, μ; dom=alphabet, codom)
+end
+
+# The rule of a quotient by a section that reads neighbours: lift the cell and each neighbour the
+# rule reads, which reads further, apply the rule, and map the result down.
+struct _SlidingQuotientRule{R<:CAC.AbstractRule,H,F,W,C,N} <: CAC.AbstractRule
+    rule::R
+    h::H
+    f::F
+    window::W
+    at_centre::C
+    at_neighbours::N
+end
+@inline function CAC.local_rule(r::_SlidingQuotientRule, cell, nbrs, ctx)
+    lifted = _apply_at(r, r.at_centre, cell, nbrs)
+    around = map(a -> _apply_at(r, a, cell, nbrs), r.at_neighbours)
+    return r.h(CAC.local_rule(r.rule, lifted, around, ctx))
+end
+CAC.neighbourhood(r::_SlidingQuotientRule) = r.window
+Base.show(io::IO, r::_SlidingQuotientRule) = print(io, "sliding quotient of ", r.rule)
+
+"""
+    quotient(model, h, section, section_window; states, name, description="", space=nothing, dims=2)
+        -> SlidingBlockMap
+
+The map from `model` to its quotient by the map of cell states `h`, where the lift reads neighbours:
+`section(b, nbrs)` reads a cell of the quotient and those of the neighbourhood `section_window`, read
+as a rule reads them, and gives a cell of `model` with `h(section(b, nbrs)) == b`. The quotient's
+rule lifts the cell and each neighbour `model`'s rule reads, applies that rule, and maps
+the result down, so its neighbourhood holds the sums of the two sets of offsets, found on `space`
+(by default a torus of `dims` dimensions). The rule draws the random numbers of its own cell, as `model`'s
+does. It has `states` and `model`'s parameters and covariates. A problem's callback moves with
+`callback=:lift` or `:lift_step`.
+
+This can forget a layer that feeds back, if a cell can work it out from its neighbours. Such a map
+need not hold everywhere, since a state can say something else in that layer. It holds from a state
+where what is forgotten agrees with the section, as long as a run keeps it so, and the Lean library
+proves that (`SlidingLumping.run_consistent`). So [`is_model_map`](@ref is_model_map(::SlidingBlockMap))
+on a problem is the real test, and its first form can say no. A rule on a graph,
+a block or event rule, or a model with kernel fields raises `ArgumentError`, as does a rule that
+does not name its neighbourhood.
+"""
+function quotient(model::CAC.CAModel, h, section, section_window::CAC.AbstractNeighbourhood;
+                  states, name::Symbol=Symbol(model.name, :_quotient),
+                  description::AbstractString="quotient of $(model.name)", space=nothing,
+                  dims::Integer=2)
+    model.rule isa Union{CAC.EventRule,CAC.BlockRule} &&
+        throw(ArgumentError("cannot take a quotient of $(model.name) by a section that reads neighbours: it has an event or block rule"))
+    isempty(model.fields) ||
+        throw(ArgumentError("cannot take a quotient of $(model.name) by a section that reads neighbours: it has kernel fields, whose sources read one cell"))
+    lattice = space === nothing ? CAC.Torus(ntuple(_ -> 201, dims)...) : space
+    lattice isa CAC.Lattice ||
+        throw(ArgumentError("a section that reads neighbours needs a lattice, whose offsets can be added; got $lattice"))
+    reads = _rule_offsets(model, lattice)
+    window, at_centre, at_neighbours = _window_sum(CAC._offsets_of(CAC._resolve(section_window,
+                                                                                lattice)),
+                                                   reads)
+    rule = _SlidingQuotientRule(model.rule, h, section, window, at_centre, at_neighbours)
+    q = CAC.CAModel(rule; name, states, parameters=model.parameters,
+                    covariates=model.covariates, description)
+    return SlidingBlockMap(model, q, (c, _) -> h(c), nothing; parameters=identity, section,
+                           section_window)
 end

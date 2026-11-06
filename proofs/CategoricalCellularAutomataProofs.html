@@ -141,6 +141,9 @@ that read neighbours</a>
 <li><a href="#examples-on-a-ring" id="toc-examples-on-a-ring">Examples
 on a ring</a></li>
 <li><a href="#factors" id="toc-factors">Factors</a></li>
+<li><a href="#quotients-by-a-section-that-reads-neighbours"
+id="toc-quotients-by-a-section-that-reads-neighbours">Quotients by a
+section that reads neighbours</a></li>
 </ul></li>
 </ul>
 </nav>
@@ -397,6 +400,24 @@ cannot on one</td>
 <td>through a surjective cellular automaton, a factor exists exactly
 when the rule respects the fibres, and is a unique cellular
 automaton</td>
+</tr>
+<tr>
+<td><code>SlidingLumping</code>,
+<code>SlidingLumping.run_consistent</code>,
+<code>SlidingLumping.stepQ_reads</code>,
+<code>SlidingLumping.stepQ_unique</code></td>
+<td><code>quotient(model, h, section, section_window)</code>,
+<code>forget_layers(...; rebuild, window)</code></td>
+<td>a section that reads neighbours: the quotient’s step is local, is
+the only one that commutes, and runs each run that stays among the
+consistent states</td>
+</tr>
+<tr>
+<td><code>pairLumping_run</code>,
+<code>pairLumping_not_descends</code></td>
+<td><code>is_model_map</code> on such a quotient</td>
+<td>it can hold on the consistent states and not on the others, so the
+local check can say no while a run says yes</td>
 </tr>
 </tbody>
 </table>
@@ -1744,9 +1765,10 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb21-1"><a href=
 that read neighbours</h1>
 <div class="sourceCode" id="cb22"><pre
 class="sourceCode lean"><code class="sourceCode lean"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Models</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.CurtisHedlundLyndon</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.ZMod.Basic</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Tactic.LinearCombination</span></code></pre></div>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.Quotients</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> CategoricalCellularAutomataProofs.CurtisHedlundLyndon</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Data.ZMod.Basic</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> Mathlib.Tactic.LinearCombination</span></code></pre></div>
 <p>A <code>ModelMap</code> sends the state of a cell to a state. A
 sliding map reads a finite window around the cell, so it can see what
 lies between cells, such as a boundary between two regions. Here it is a
@@ -1773,6 +1795,19 @@ exactly when <code>F</code> respects the fibres of <code>Φ</code>, and
 then <code>F'</code> is unique (<code>factor_exists_iff</code>,
 <code>factor_unique</code>, <code>factor_isCA</code>); over a finite
 group that follows from the Curtis–Hedlund–Lyndon theorem.</p>
+<p>A cell-by-cell map down can have a section that reads neighbours
+(<code>SlidingLumping</code>, the package’s
+<code>quotient(model, h, section, section_window)</code>). The
+quotient’s step lifts, steps and maps down, and it reads a finite window
+(<code>SlidingLumping.stepQ_reads</code>). Unlike a section of one cell,
+this can forget a layer that feeds back, when a cell can work it out
+from its neighbours. The map then holds on the consistent states, where
+what is forgotten agrees with the section, for as long as a run stays
+among them (<code>SlidingLumping.run_consistent</code>), though not on
+all states (<code>pairLumping_not_descends</code>). Where the dynamics
+do not depend on what is forgotten it holds everywhere, and this is the
+only step that does (<code>SlidingLumping.stepQ_comm</code>,
+<code>SlidingLumping.stepQ_unique</code>).</p>
 <div class="sourceCode" id="cb23"><pre
 class="sourceCode lean"><code class="sourceCode lean"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> CategoricalCellularAutomataProofs</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1999,8 +2034,135 @@ class="sourceCode lean"><code class="sourceCode lean"><span id="cb25-1"><a href=
 <span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨x, rfl⟩ := hs y</span>
 <span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [← hΦ.shift_comm, h, hF.shift_comm, hΦ.shift_comm, h]</span>
 <span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Factor</span>
-<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> Factor</span></code></pre></div>
+<h2 id="quotients-by-a-section-that-reads-neighbours">Quotients by a
+section that reads neighbours</h2>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode lean"><code class="sourceCode lean"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">section</span> SlidingQuotient</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A map of cell states with a section that reads a finite window of the smaller state. -/</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="kw">structure</span> SlidingLumping (M : CAModel X) (B : <span class="kw">Type</span> u) <span class="kw">where</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the map of cell states -/</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  h : M.A → B</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the lift of a state, which may read neighbours -/</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  S : (X → B) → X → M.A</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- each lifted cell reads a finite window -/</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>  reads : ∃ w : X → List X, ∀ c y y&#39;, (∀ d ∈ w c, y d = y&#39; d) → S y c = S y&#39; c</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>  <span class="do">/-- the lift forgets nothing that `h` keeps -/</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>  h_S : ∀ y c, h (S y c) = y c</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> SlidingLumping</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {M : CAModel X} {B : <span class="kw">Type</span> u} (q : SlidingLumping M B) (nbrs : X → List X)</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The quotient&#39;s step: lift the state, take a step of the model, and map down. -/</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stepQ (t : ℕ) (y : X → B) : X → B := q.h ∘ step nbrs (M.μ t) (q.S y)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The quotient&#39;s step is local**: it reads the windows of the cells the model&#39;s rule reads. -/</span></span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> stepQ_reads (t : ℕ) : ∃ w : X → List X, ∀ c y y&#39;, (∀ d ∈ w c, y d = y&#39; d) →</span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>    q.stepQ nbrs t y c = q.stepQ nbrs t y&#39; c := <span class="kw">by</span></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>  <span class="cf">obtain</span> ⟨w, hw⟩ := q.reads</span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> ⟨fun c =&gt; (nbrs c).flatMap w, <span class="kw">fun</span> c y y&#39; e =&gt; ?_⟩</span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> : (nbrs c).map (q.S y) = (nbrs c).map (q.S y&#39;) :=</span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a>    List.map_congr_left <span class="kw">fun</span> d hd =&gt; hw d y y&#39; <span class="kw">fun</span> b hb =&gt; e b (List.mem_flatMap.mpr ⟨d, hd, hb⟩)</span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [stepQ, step, Function.comp_apply, this]</span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A consistent state: what `h` forgets is what the section would rebuild. -/</span></span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> Consistent (x : X → M.A) : <span class="kw">Prop</span> := q.S (q.h ∘ x) = x</span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a><span class="do">/-- From a consistent state, the quotient&#39;s step is the model&#39;s step, mapped down. -/</span></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> stepQ_of_consistent {x : X → M.A} (hx : q.Consistent x) (t : ℕ) :</span>
+<span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a>    q.stepQ nbrs t (q.h ∘ x) = q.h ∘ step nbrs (M.μ t) x := <span class="kw">by</span></span>
+<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [stepQ]</span>
+<span id="cb26-37"><a href="#cb26-37" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [hx]</span>
+<span id="cb26-38"><a href="#cb26-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-39"><a href="#cb26-39" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The quotient runs a run of the model that stays among the consistent states, mapped down.**</span></span>
+<span id="cb26-40"><a href="#cb26-40" aria-hidden="true" tabindex="-1"></a><span class="do">Nothing is needed of the dynamics on other states. -/</span></span>
+<span id="cb26-41"><a href="#cb26-41" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> run_consistent (x : X → M.A) (n : ℕ) (hc : ∀ k &lt; n, q.Consistent (run nbrs M.μ x k)) :</span>
+<span id="cb26-42"><a href="#cb26-42" aria-hidden="true" tabindex="-1"></a>    iterateStep (q.stepQ nbrs) (q.h ∘ x) n = q.h ∘ run nbrs M.μ x n := <span class="kw">by</span></span>
+<span id="cb26-43"><a href="#cb26-43" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> n <span class="kw">with</span></span>
+<span id="cb26-44"><a href="#cb26-44" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">rfl</span></span>
+<span id="cb26-45"><a href="#cb26-45" aria-hidden="true" tabindex="-1"></a>  | succ n ih =&gt;</span>
+<span id="cb26-46"><a href="#cb26-46" aria-hidden="true" tabindex="-1"></a>    <span class="cf">simp</span> only [iterateStep, run]</span>
+<span id="cb26-47"><a href="#cb26-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">rw</span> [ih <span class="kw">fun</span> k hk =&gt; hc k (Nat.lt_succ_of_lt hk)]</span>
+<span id="cb26-48"><a href="#cb26-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> q.stepQ_of_consistent nbrs (hc n (Nat.lt_succ_self n)) n</span>
+<span id="cb26-49"><a href="#cb26-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-50"><a href="#cb26-50" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A run stays among the consistent states when each step keeps them so. -/</span></span>
+<span id="cb26-51"><a href="#cb26-51" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> run_of_invariant {x : X → M.A} (h0 : q.Consistent x)</span>
+<span id="cb26-52"><a href="#cb26-52" aria-hidden="true" tabindex="-1"></a>    (inv : ∀ t x, q.Consistent x → q.Consistent (step nbrs (M.μ t) x)) (n : ℕ) :</span>
+<span id="cb26-53"><a href="#cb26-53" aria-hidden="true" tabindex="-1"></a>    iterateStep (q.stepQ nbrs) (q.h ∘ x) n = q.h ∘ run nbrs M.μ x n := <span class="kw">by</span></span>
+<span id="cb26-54"><a href="#cb26-54" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> q.run_consistent nbrs x n <span class="kw">fun</span> k _ =&gt; ?_</span>
+<span id="cb26-55"><a href="#cb26-55" aria-hidden="true" tabindex="-1"></a>  <span class="cf">induction</span> k <span class="kw">with</span></span>
+<span id="cb26-56"><a href="#cb26-56" aria-hidden="true" tabindex="-1"></a>  | zero =&gt; <span class="cf">exact</span> h0</span>
+<span id="cb26-57"><a href="#cb26-57" aria-hidden="true" tabindex="-1"></a>  | succ k ih =&gt; <span class="cf">exact</span> inv k _ (ih (<span class="kw">by</span> <span class="cf">omega</span>))</span>
+<span id="cb26-58"><a href="#cb26-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-59"><a href="#cb26-59" aria-hidden="true" tabindex="-1"></a><span class="do">/-- The dynamics do not depend on what `h` forgets. -/</span></span>
+<span id="cb26-60"><a href="#cb26-60" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> Descends : <span class="kw">Prop</span> := ∀ t (x x&#39; : X → M.A), q.h ∘ x = q.h ∘ x&#39; →</span>
+<span id="cb26-61"><a href="#cb26-61" aria-hidden="true" tabindex="-1"></a>  q.h ∘ step nbrs (M.μ t) x = q.h ∘ step nbrs (M.μ t) x&#39;</span>
+<span id="cb26-62"><a href="#cb26-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-63"><a href="#cb26-63" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> h_comp_S (y : X → B) : q.h ∘ q.S y = y := <span class="cf">funext</span> (q.h_S y)</span>
+<span id="cb26-64"><a href="#cb26-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-65"><a href="#cb26-65" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Where the dynamics do not depend on what is forgotten, the map holds on every state.** -/</span></span>
+<span id="cb26-66"><a href="#cb26-66" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> stepQ_comm (hd : q.Descends nbrs) (t : ℕ) (x : X → M.A) :</span>
+<span id="cb26-67"><a href="#cb26-67" aria-hidden="true" tabindex="-1"></a>    q.stepQ nbrs t (q.h ∘ x) = q.h ∘ step nbrs (M.μ t) x :=</span>
+<span id="cb26-68"><a href="#cb26-68" aria-hidden="true" tabindex="-1"></a>  hd t _ _ (q.h_comp_S _)</span>
+<span id="cb26-69"><a href="#cb26-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-70"><a href="#cb26-70" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **Any step that `h` commutes with is the quotient&#39;s.** -/</span></span>
+<span id="cb26-71"><a href="#cb26-71" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> stepQ_unique {G : ℕ → (X → B) → X → B}</span>
+<span id="cb26-72"><a href="#cb26-72" aria-hidden="true" tabindex="-1"></a>    (comm : ∀ t x, G t (q.h ∘ x) = q.h ∘ step nbrs (M.μ t) x) : G = q.stepQ nbrs := <span class="kw">by</span></span>
+<span id="cb26-73"><a href="#cb26-73" aria-hidden="true" tabindex="-1"></a>  <span class="cf">funext</span> t y</span>
+<span id="cb26-74"><a href="#cb26-74" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> := comm t (q.S y)</span>
+<span id="cb26-75"><a href="#cb26-75" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rwa</span> [q.h_comp_S] <span class="kw">at</span> this</span>
+<span id="cb26-76"><a href="#cb26-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-77"><a href="#cb26-77" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> SlidingLumping</span>
+<span id="cb26-78"><a href="#cb26-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-79"><a href="#cb26-79" aria-hidden="true" tabindex="-1"></a><span class="kw">variable</span> {n : ℕ}</span>
+<span id="cb26-80"><a href="#cb26-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-81"><a href="#cb26-81" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A state written as pairs of neighbouring cells, under the shift: each cell takes the second of</span></span>
+<span id="cb26-82"><a href="#cb26-82" aria-hidden="true" tabindex="-1"></a><span class="do">its pair, and the second of the next cell&#39;s. -/</span></span>
+<span id="cb26-83"><a href="#cb26-83" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pairModel (n : ℕ) : CAModel (ZMod n) <span class="kw">where</span></span>
+<span id="cb26-84"><a href="#cb26-84" aria-hidden="true" tabindex="-1"></a>  A := Bool × Bool</span>
+<span id="cb26-85"><a href="#cb26-85" aria-hidden="true" tabindex="-1"></a>  μ _ _ l := <span class="kw">match</span> l <span class="kw">with</span></span>
+<span id="cb26-86"><a href="#cb26-86" aria-hidden="true" tabindex="-1"></a>    | [_, m, r] =&gt; (m<span class="fl">.2</span>, r<span class="fl">.2</span>)</span>
+<span id="cb26-87"><a href="#cb26-87" aria-hidden="true" tabindex="-1"></a>    | _ =&gt; (false, false)</span>
+<span id="cb26-88"><a href="#cb26-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-89"><a href="#cb26-89" aria-hidden="true" tabindex="-1"></a><span class="do">/-- Forgetting the second of each pair, which the next cell can rebuild. -/</span></span>
+<span id="cb26-90"><a href="#cb26-90" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> pairLumping : SlidingLumping (pairModel n) Bool <span class="kw">where</span></span>
+<span id="cb26-91"><a href="#cb26-91" aria-hidden="true" tabindex="-1"></a>  h := Prod.fst</span>
+<span id="cb26-92"><a href="#cb26-92" aria-hidden="true" tabindex="-1"></a>  S y c := (y c, y (c + <span class="dv">1</span>))</span>
+<span id="cb26-93"><a href="#cb26-93" aria-hidden="true" tabindex="-1"></a>  reads := ⟨fun c =&gt; [c, c + <span class="dv">1</span>], <span class="kw">fun</span> c y y&#39; e =&gt; <span class="kw">by</span> <span class="cf">simp</span> [e c (<span class="kw">by</span> <span class="cf">simp</span>), e (c + <span class="dv">1</span>) (<span class="kw">by</span> <span class="cf">simp</span>)]⟩</span>
+<span id="cb26-94"><a href="#cb26-94" aria-hidden="true" tabindex="-1"></a>  h_S _ _ := <span class="cf">rfl</span></span>
+<span id="cb26-95"><a href="#cb26-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-96"><a href="#cb26-96" aria-hidden="true" tabindex="-1"></a><span class="do">/-- A pair is consistent when its second is the first of the next cell&#39;s. -/</span></span>
+<span id="cb26-97"><a href="#cb26-97" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> pairLumping_consistent_iff {x : ZMod n → (pairModel n).A} :</span>
+<span id="cb26-98"><a href="#cb26-98" aria-hidden="true" tabindex="-1"></a>    pairLumping.Consistent x ↔ ∀ c, (x c).<span class="dv">2</span> = (x (c + <span class="dv">1</span>)).<span class="dv">1</span> := <span class="kw">by</span></span>
+<span id="cb26-99"><a href="#cb26-99" aria-hidden="true" tabindex="-1"></a>  <span class="cf">constructor</span></span>
+<span id="cb26-100"><a href="#cb26-100" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> h c</span>
+<span id="cb26-101"><a href="#cb26-101" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> (congrArg Prod.snd (congrFun h c)).symm</span>
+<span id="cb26-102"><a href="#cb26-102" aria-hidden="true" tabindex="-1"></a>  · <span class="cf">intro</span> h</span>
+<span id="cb26-103"><a href="#cb26-103" aria-hidden="true" tabindex="-1"></a>    <span class="cf">funext</span> c</span>
+<span id="cb26-104"><a href="#cb26-104" aria-hidden="true" tabindex="-1"></a>    <span class="cf">exact</span> Prod.ext <span class="cf">rfl</span> (h c).symm</span>
+<span id="cb26-105"><a href="#cb26-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-106"><a href="#cb26-106" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The quotient runs each run of consistent pairs, mapped down.** -/</span></span>
+<span id="cb26-107"><a href="#cb26-107" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> pairLumping_run {x : ZMod n → (pairModel n).A} (h0 : pairLumping.Consistent x) (k : ℕ) :</span>
+<span id="cb26-108"><a href="#cb26-108" aria-hidden="true" tabindex="-1"></a>    iterateStep (pairLumping.stepQ (ringNbrs n)) (pairLumping.h ∘ x) k =</span>
+<span id="cb26-109"><a href="#cb26-109" aria-hidden="true" tabindex="-1"></a>      pairLumping.h ∘ run (ringNbrs n) (pairModel n).μ x k := <span class="kw">by</span></span>
+<span id="cb26-110"><a href="#cb26-110" aria-hidden="true" tabindex="-1"></a>  <span class="cf">refine</span> pairLumping.run_of_invariant (ringNbrs n) h0 (<span class="kw">fun</span> t x hx =&gt; ?_) k</span>
+<span id="cb26-111"><a href="#cb26-111" aria-hidden="true" tabindex="-1"></a>  <span class="cf">rw</span> [pairLumping_consistent_iff] <span class="kw">at</span> hx ⊢</span>
+<span id="cb26-112"><a href="#cb26-112" aria-hidden="true" tabindex="-1"></a>  <span class="cf">intro</span> c</span>
+<span id="cb26-113"><a href="#cb26-113" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> only [step, ringNbrs, pairModel, List.map, add_sub_cancel_right]</span>
+<span id="cb26-114"><a href="#cb26-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-115"><a href="#cb26-115" aria-hidden="true" tabindex="-1"></a><span class="do">/-- **The map holds on the consistent states and not on the others**, so a section that reads</span></span>
+<span id="cb26-116"><a href="#cb26-116" aria-hidden="true" tabindex="-1"></a><span class="do">neighbours reaches further than the condition on every state: the first of a next pair depends on</span></span>
+<span id="cb26-117"><a href="#cb26-117" aria-hidden="true" tabindex="-1"></a><span class="do">the second of this one, which `h` forgets. -/</span></span>
+<span id="cb26-118"><a href="#cb26-118" aria-hidden="true" tabindex="-1"></a><span class="kw">theorem</span> pairLumping_not_descends : ¬ pairLumping.Descends (ringNbrs n) := <span class="kw">by</span></span>
+<span id="cb26-119"><a href="#cb26-119" aria-hidden="true" tabindex="-1"></a>  <span class="cf">intro</span> hd</span>
+<span id="cb26-120"><a href="#cb26-120" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> e := hd <span class="dv">0</span> (<span class="kw">fun</span> _ =&gt; (false, false)) (<span class="kw">fun</span> _ =&gt; (false, true)) <span class="cf">rfl</span></span>
+<span id="cb26-121"><a href="#cb26-121" aria-hidden="true" tabindex="-1"></a>  <span class="kw">have</span> := congrFun e <span class="dv">0</span></span>
+<span id="cb26-122"><a href="#cb26-122" aria-hidden="true" tabindex="-1"></a>  <span class="cf">simp</span> [step, ringNbrs, pairModel, pairLumping] <span class="kw">at</span> this</span>
+<span id="cb26-123"><a href="#cb26-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-124"><a href="#cb26-124" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> SlidingQuotient</span>
+<span id="cb26-125"><a href="#cb26-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-126"><a href="#cb26-126" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span> CategoricalCellularAutomataProofs</span></code></pre></div>
 </body>
 </html>

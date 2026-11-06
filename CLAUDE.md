@@ -72,10 +72,15 @@ the `references.bib` files here are synced copies.
   periodic lattice or a graph; it is tested against the composition of `CellularAutomaton`s, compared by `==`, and
   against every pair of elementary rules (32 maps under the boundary code, those that respect complements). A
   stochastic domain's next state depends on the numbers of every cell in the window, so the codomain's rule must
-  draw those too, through a `CellContext` with the other cell's id. There is no section, so `:lift` and `:lift_step`
-  are refused and there is no quotient: the codomain is written by hand and checked. Composing two needs `Offsets`
-  windows; composing with a `ModelMap` keeps the other's window on any space. `ModelMap` and `SlidingBlockMap` share
-  `is_model_map` and `pushforward`, but only `ModelMap`s belong to the Catlab `@instance`.
+  draw those too, through a `CellContext` with the other cell's id. Composing two needs `Offsets` windows, unless
+  one reads the cell alone (`window=nothing`); composing with a `ModelMap` keeps the other's window on any space.
+  `ModelMap` and `SlidingBlockMap` share `is_model_map` and `pushforward`, but only `ModelMap`s belong to the Catlab
+  `@instance`. A map with a `section` moves callbacks with `:lift` and `:lift_step`; lifting takes the space,
+  through `_lift_state(f, u, space)` and `_state_down`. `quotient(model, h, section, section_window)` and
+  `forget_layers(...; rebuild, window)` build a codomain from the domain's rule with `_SlidingQuotientRule`, which
+  reads the sums of the two sets of offsets. Its `h` stays cell by cell, because a rule can draw only its own cell's
+  random numbers. The map may hold only on states where what is forgotten agrees with the section, so tests compare
+  runs from those states, and states that disagree must fail; a local `false` does not disprove it for a run.
 - This package does not depend on EcologicalCellularAutomata. Only the vignette environment does (vignette
   14 uses published models); the test suite does not, and `vignettes.yml` checks the zoo out.
 - Gluing (`src/gluing.jl`): spaces as `SlotGraph` C-sets, patches as `OpenSlotGraph` structured cospans with

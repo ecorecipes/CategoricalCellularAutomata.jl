@@ -44,6 +44,8 @@ Julia package works with finite groups and alphabets, so its computations are in
 | `instCategorySlidingModels`, `ModelMap.slidingFunctor`, `kinkMap126_not_cellwise` | `compose` of `SlidingBlockMap`s and `ModelMap`s | they form a category holding the cell-by-cell maps as a subcategory, and it is larger |
 | `kinkMap126`, `wallsMap`, `walls_need_other_coins` | vignette 15, `Maps that read neighbours` | the boundaries of rule 126 are rule 18; the boundaries of a voter model move on the coins of two cells, whichever coins are drawn, and cannot on one |
 | `factor_exists_iff`, `factor_unique`, `factor_isCA` | the search over elementary rules in the tests | through a surjective cellular automaton, a factor exists exactly when the rule respects the fibres, and is a unique cellular automaton |
+| `SlidingLumping`, `SlidingLumping.run_consistent`, `SlidingLumping.stepQ_reads`, `SlidingLumping.stepQ_unique` | `quotient(model, h, section, section_window)`, `forget_layers(...; rebuild, window)` | a section that reads neighbours: the quotient's step is local, is the only one that commutes, and runs each run that stays among the consistent states |
+| `pairLumping_run`, `pairLumping_not_descends` | `is_model_map` on such a quotient | it can hold on the consistent states and not on the others, so the local check can say no while a run says yes |
 
 Every theorem in the default target is free of `sorry`; `Audit.lean` prints the axioms each
 main theorem uses (only `propext`, `Classical.choice` and `Quot.sound` are expected).

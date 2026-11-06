@@ -99,3 +99,12 @@ open CategoricalCellularAutomataProofs
 #print axioms factor_exists_iff
 #print axioms factor_unique
 #print axioms factor_isCA
+#print axioms SlidingLumping.stepQ_reads
+#print axioms SlidingLumping.stepQ_of_consistent
+#print axioms SlidingLumping.run_consistent
+#print axioms SlidingLumping.run_of_invariant
+#print axioms SlidingLumping.stepQ_comm
+#print axioms SlidingLumping.stepQ_unique
+#print axioms pairLumping_consistent_iff
+#print axioms pairLumping_run
+#print axioms pairLumping_not_descends

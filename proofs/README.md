@@ -71,4 +71,7 @@ JuliaMono read from `../../fonts/JuliaMono/`.
    subcategory, which it strictly extends. The boundaries of rule 126 are rule 18. The boundaries
    of a voter model move on the coins of the two cells beside them, for every field of coins, and
    no rule reading one coin can do that. Through a surjective cellular automaton, a factor exists
-   exactly when the rule respects the fibres, and it is then a unique cellular automaton.
+   exactly when the rule respects the fibres, and it is then a unique cellular automaton. A
+   cell-by-cell map down can have a section that reads neighbours: the quotient's step is then
+   local and the only one that commutes, and it runs every run that stays among the states where
+   what is forgotten agrees with the section, though the map need not hold on the others.
