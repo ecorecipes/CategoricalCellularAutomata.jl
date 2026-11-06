@@ -343,6 +343,92 @@ wrong_count = merge(default_problem.u0, (; neighbours=fill(Int8(4), size(default
 
     (default_settings = true, wrong_count = false, refuges_with_no_capacity = false)
 
+That limit belongs to the reading and not to the layer. The edge reads
+as zero, so the rebuild needs a layer that is never zero on the lattice.
+The allele frequency `q` serves as well as `K`, and fails in the
+opposite case:
+
+``` julia
+count_alleles(c, nbrs) = (; neighbours=Int8(count(n -> n.q > 0, nbrs)))
+reading_q = forget_layers(build(:resistance_regional), :neighbours; rebuild=count_alleles,
+                          window=VonNeumann(1))
+map(((; kappa=0.5), (; kappa=0.0), (; q0=0.0))) do setting
+    p = problem(:resistance_regional; setting...)
+    (; setting, reading_K=is_model_map(no_neighbours, p), reading_q=is_model_map(reading_q, p))
+end
+```
+
+    ((setting = (kappa = 0.5,), reading_K = true, reading_q = true), (setting = (kappa = 0.0,), reading_K = false, reading_q = true), (setting = (q0 = 0.0,), reading_K = true, reading_q = false))
+
+A search of the zoo for other such layers compared each of the 101
+layers of the 20 multi-layer models on a lattice with its cell’s other
+layers and its neighbours’, at default settings and with the management
+options switched on. One other layer that a run needs can be read from
+the neighbours: `border` in the emerald ash borer model ([Mercader et
+al. 2011](#ref-Mercader2011)), the ring two cells wide where dispersing
+beetles are lost. Like `neighbours`, it says where the edge is. A cell
+lies in the ring if the edge is within two cells, and one cell more or
+fewer gets it wrong:
+
+``` julia
+in_the_ring(c, nbrs) = (; border=any(n -> n.phloem0 == 0, nbrs))
+borer_model = build(:emerald_ash_borer)
+borer = problem(:emerald_ash_borer; n=41)
+rebuilt_border(window, p=borer; rule=in_the_ring) = is_model_map(forget_layers(borer_model, :border;
+                                                                               rebuild=rule, window),
+                                                                 p; callback=:lift)
+(with_a_default=is_model_map(forget_layers(borer_model, :border), borer; callback=:lift),
+ two_cells=rebuilt_border(Moore(2)), one_cell=rebuilt_border(Moore(1)),
+ three_cells=rebuilt_border(Moore(3)))
+```
+
+    (with_a_default = false, two_cells = true, one_cell = false, three_cells = false)
+
+Zero is a poor mark for the edge in a landscape with empty cells, since
+the cells around them look like the ring. A boundary value that no cell
+holds removes the doubt, and the run stays the same. A boundary fills
+every layer, so with a layer of `Bool` the only other value is 1:
+
+``` julia
+marked_edge(p) = remake(p; space=Grid(size(p.space)...; boundary=Constant(1)))
+in_the_marked_ring(c, nbrs) = (; border=any(n -> n.phloem0 == 1, nbrs))
+map((:clumped, :random)) do environment
+    p = problem(:emerald_ash_borer; n=41, environment)
+    (; environment, zero_as_the_edge=rebuilt_border(Moore(2), p),
+     one_as_the_edge=rebuilt_border(Moore(2), marked_edge(p); rule=in_the_marked_ring),
+     same_run=solve(marked_edge(p)).u == solve(p).u)
+end
+```
+
+    ((environment = :clumped, zero_as_the_edge = false, one_as_the_edge = true, same_run = true), (environment = :random, zero_as_the_edge = false, one_as_the_edge = true, same_run = true))
+
+A match on saved states proves little, which is why every candidate was
+run as a map. In the potato moth model ([Rebaudo et al.
+2011](#ref-Rebaudo2011)) a cell’s `temperature` is an integer and
+`temperature_now` adds noise of 0.1 to it, so `round(temperature_now)`
+recovers it unless a draw falls five standard deviations away. With
+640000 draws in a run, that happens in about a third of runs, so the
+same map holds on some seeds and not on others:
+
+``` julia
+map(0:7) do seed
+    is_model_map(forget_layers(build(:potato_moth_farmers), :temperature;
+                               rebuild=(c, _) -> (; temperature=round(c.temperature_now)),
+                               window=VonNeumann(1)),
+                 problem(:potato_moth_farmers; seed); callback=:lift)
+end
+```
+
+    8-element Vector{Bool}:
+     1
+     0
+     1
+     0
+     1
+     1
+     0
+     1
+
 ## Limits
 
 An edge is read as a rule reads it, and that counts. Rule 90 and the
@@ -395,6 +481,11 @@ Other limits:
 | regional resistance without `neighbours`, a default | run | not a map |
 | regional resistance without `neighbours`, rebuilt from neighbours | run, both neighbourhoods | a map |
 | the same, a wrong count, or `kappa = 0` | run | not a map |
+| the same, reading `q` instead of `K` | run, `kappa = 0`; `q0 = 0` | a map; not a map |
+| emerald ash borer without `border`, a default | run | not a map |
+| emerald ash borer without `border`, the edge within two cells | run, within one or three cells | a map; not a map |
+| the same, with empty cells | run, zero or 1 marking the edge | not a map; a map |
+| potato moth without `temperature`, rounding `temperature_now` | run, eight seeds | a map on five, not on three |
 | rule 90, boundary map, grid with fixed edges | run | not a map |
 
 ## References
@@ -433,12 +524,32 @@ Dynamics and Coding*. Cambridge University Press.
 
 </div>
 
+<div id="ref-Mercader2011" class="csl-entry">
+
+Mercader, Rodrigo J., Nathan W. Siegert, Andrew M. Liebhold, and Deborah
+G. McCullough. 2011. “Influence of Foraging Behavior and Host Spatial
+Distribution on the Localized Spread of the Emerald Ash Borer, *Agrilus
+Planipennis*.” *Population Ecology* 53 (2): 271–85.
+<https://doi.org/10.1007/s10144-010-0233-6>.
+
+</div>
+
 <div id="ref-Peck1997" class="csl-entry">
 
 Peck, Steven L., and Stephen P. Ellner. 1997. “The Effect of Economic
 Thresholds and Life-History Parameters on the Evolution of Pesticide
 Resistance in a Regional Setting.” *The American Naturalist* 149 (1):
 43–63. <https://doi.org/10.1086/285978>.
+
+</div>
+
+<div id="ref-Rebaudo2011" class="csl-entry">
+
+Rebaudo, François, Verónica Crespo-Pérez, Jean-François Silvain, and
+Olivier Dangles. 2011. “Agent-Based Modeling of Human-Induced Spread of
+Invasive Species in Agricultural Landscapes: Insights from the Potato
+Moth in Ecuador.” *Journal of Artificial Societies and Social
+Simulation* 14 (3): 7. <https://doi.org/10.18564/jasss.1802>.
 
 </div>
 
