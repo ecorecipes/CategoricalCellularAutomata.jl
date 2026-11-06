@@ -385,22 +385,23 @@ rebuilt_border(window, p=borer; rule=in_the_ring) = is_model_map(forget_layers(b
     (with_a_default = false, two_cells = true, one_cell = false, three_cells = false)
 
 Zero is a poor mark for the edge in a landscape with empty cells, since
-the cells around them look like the ring. A boundary value that no cell
-holds removes the doubt, and the run stays the same. A boundary fills
-every layer, so with a layer of `Bool` the only other value is 1:
+the cells around them look like the ring. A value that no cell holds
+removes the doubt. A number fills every layer, and `Constant(-1)` cannot
+fill a layer of `Bool`, so name the layer: the others read zero as
+before, and the run stays the same:
 
 ``` julia
-marked_edge(p) = remake(p; space=Grid(size(p.space)...; boundary=Constant(1)))
-in_the_marked_ring(c, nbrs) = (; border=any(n -> n.phloem0 == 1, nbrs))
+marked_edge(p) = remake(p; space=Grid(size(p.space)...; boundary=Constant((; phloem0=-1.0))))
+in_the_marked_ring(c, nbrs) = (; border=any(n -> n.phloem0 < 0, nbrs))
 map((:clumped, :random)) do environment
     p = problem(:emerald_ash_borer; n=41, environment)
     (; environment, zero_as_the_edge=rebuilt_border(Moore(2), p),
-     one_as_the_edge=rebuilt_border(Moore(2), marked_edge(p); rule=in_the_marked_ring),
+     marked_edge=rebuilt_border(Moore(2), marked_edge(p); rule=in_the_marked_ring),
      same_run=solve(marked_edge(p)).u == solve(p).u)
 end
 ```
 
-    ((environment = :clumped, zero_as_the_edge = false, one_as_the_edge = true, same_run = true), (environment = :random, zero_as_the_edge = false, one_as_the_edge = true, same_run = true))
+    ((environment = :clumped, zero_as_the_edge = false, marked_edge = true, same_run = true), (environment = :random, zero_as_the_edge = false, marked_edge = true, same_run = true))
 
 A match on saved states proves little, which is why every candidate was
 run as a map. In the potato moth model ([Rebaudo et al.
@@ -484,7 +485,7 @@ Other limits:
 | the same, reading `q` instead of `K` | run, `kappa = 0`; `q0 = 0` | a map; not a map |
 | emerald ash borer without `border`, a default | run | not a map |
 | emerald ash borer without `border`, the edge within two cells | run, within one or three cells | a map; not a map |
-| the same, with empty cells | run, zero or 1 marking the edge | not a map; a map |
+| the same, with empty cells | run, zero or a marked layer as the edge | not a map; a map |
 | potato moth without `temperature`, rounding `temperature_now` | run, eight seeds | a map on five, not on three |
 | rule 90, boundary map, grid with fixed edges | run | not a map |
 
